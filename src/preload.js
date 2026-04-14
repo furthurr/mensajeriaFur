@@ -18,6 +18,7 @@ contextBridge.exposeInMainWorld('api', {
   getPreferences: () => ipcRenderer.invoke('get-preferences'),
   updatePreferences: (data) => ipcRenderer.invoke('update-preferences', data),
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
+  getDesktopSources: () => ipcRenderer.invoke('get-desktop-sources'),
   onInstancesChanged: (callback) => {
     ipcRenderer.on('instances-changed', (event, instances) => callback(instances));
   },

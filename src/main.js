@@ -1,4 +1,4 @@
-const { app, BrowserWindow, WebContentsView, ipcMain, session, Menu, shell } = require('electron');
+const { app, BrowserWindow, WebContentsView, ipcMain, session, Menu, shell, desktopCapturer, systemPreferences } = require('electron');
 const path = require('path');
 const crypto = require('crypto');
 const Store = require('electron-store');
@@ -186,12 +186,34 @@ function getOrCreateView(instance) {
   const ses = session.fromPartition(`persist:${instance.id}`);
 
   ses.setPermissionRequestHandler((webContents, permission, callback) => {
-    const allowed = ['notifications', 'media', 'mediaKeySystem', 'clipboard-read', 'clipboard-sanitized-write'];
+    const allowed = [
+      'notifications',
+      'media',
+      'mediaKeySystem',
+      'clipboard-read',
+      'clipboard-sanitized-write',
+      'display-capture',
+      'screen-capture'
+    ];
     if (permission === 'notifications' && !preferences.notificationsEnabled) {
       callback(false);
       return;
     }
     callback(allowed.includes(permission));
+  });
+
+  ses.setPermissionCheckHandler((webContents, permission) => {
+    const allowed = [
+      'media',
+      'mediaKeySystem',
+      'display-capture',
+      'screen-capture',
+      'notifications'
+    ];
+    if (permission === 'notifications' && !preferences.notificationsEnabled) {
+      return false;
+    }
+    return allowed.includes(permission);
   });
 
   const serviceType = SERVICE_TYPES[instance.serviceType];
@@ -535,12 +557,29 @@ function setupIpcHandlers() {
   ipcMain.handle('open-external', async (event, url) => {
     await shell.openExternal(url);
   });
+
+  ipcMain.handle('get-desktop-sources', async () => {
+    const sources = await desktopCapturer.getSources({
+      types: ['window', 'screen'],
+      thumbnailSize: { width: 150, height: 150 }
+    });
+    return sources.map(source => ({
+      id: source.id,
+      name: source.name,
+      thumbnail: source.thumbnail.toDataURL()
+    }));
+  });
 }
 
 app.whenReady().then(() => {
   app.setName(APP_NAME);
   if (process.platform === 'darwin' && app.dock) {
     app.dock.setIcon(APP_ICON_PATH);
+  }
+
+  if (process.platform === 'darwin') {
+    systemPreferences.askForMediaAccess('camera').catch(() => {});
+    systemPreferences.askForMediaAccess('microphone').catch(() => {});
   }
 
   console.log('App ready, initializing store...');
