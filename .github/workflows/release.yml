@@ -23,10 +23,23 @@ jobs:
           node-version: 20
           cache: npm
 
+      - name: Import signing certificate
+        if: env.CSC_LINK != ''
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+        run: echo "Certificate imported via electron-builder env vars"
+
       - name: Install dependencies
         run: npm ci
 
-      - name: Build macOS app
+      - name: Build macOS app (signed + notarized)
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: npm run build
 
       - name: Upload build artifacts
