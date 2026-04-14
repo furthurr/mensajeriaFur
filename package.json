@@ -10,7 +10,7 @@
     "build:zip": "electron-builder --mac zip"
   },
   "author": "PedroGomez",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "devDependencies": {
     "electron": "^32.0.0",
     "electron-builder": "^25.0.0"

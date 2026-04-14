@@ -15,7 +15,7 @@ Aplicacion de escritorio para centralizar multiples servicios de mensajeria en u
 
 ## Vista previa
 
-![Vista previa de MensajeriaFur](./mensajeriaFur_fondo.png)
+![Vista previa de MensajeriaFur](./ejemplo.png)
 
 ## Caracteristicas
 
@@ -93,4 +93,4 @@ Pedro G. V. `@furthurr`
 
 ## Licencia
 
-MIT
+Apache-2.0
