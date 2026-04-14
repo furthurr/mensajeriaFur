@@ -67,6 +67,15 @@ function cacheElements() {
   elements.aboutAppModal = document.getElementById('about-app-modal');
   elements.aboutAppName = document.getElementById('about-app-name');
   elements.aboutAppVersion = document.getElementById('about-app-version');
+  elements.updateModal = document.getElementById('update-modal');
+  elements.updateModalTitle = document.getElementById('update-modal-title');
+  elements.updateModalMessage = document.getElementById('update-modal-message');
+  elements.updateProgressContainer = document.getElementById('update-progress-container');
+  elements.updateProgressFill = document.getElementById('update-progress-fill');
+  elements.updateProgressText = document.getElementById('update-progress-text');
+  elements.btnUpdateLater = document.getElementById('btn-update-later');
+  elements.btnUpdateDownload = document.getElementById('btn-update-download');
+  elements.btnUpdateInstall = document.getElementById('btn-update-install');
 }
 
 async function init() {
@@ -97,6 +106,10 @@ async function init() {
   window.api.onActiveInstanceChanged((instanceId) => {
     activeInstanceId = instanceId;
     updateSidebarActiveState();
+  });
+
+  window.api.onUpdateStatus((data) => {
+    handleUpdateStatus(data);
   });
 }
 
@@ -180,7 +193,8 @@ function syncNativeViewVisibility() {
     !elements.serviceSelectorModal.classList.contains('hidden') ||
     !elements.addNameModal.classList.contains('hidden') ||
     !elements.confirmDeleteModal.classList.contains('hidden') ||
-    !elements.aboutAppModal.classList.contains('hidden');
+    !elements.aboutAppModal.classList.contains('hidden') ||
+    !elements.updateModal.classList.contains('hidden');
 
   const nextVisible = !shouldHideNativeView;
   if (nextVisible === nativeViewVisible) {
@@ -361,6 +375,7 @@ function renderSettingsPanel() {
         <p>Informacion, autoria y enlaces del proyecto.</p>
       </div>
       <button class="settings-link-btn" id="btn-open-about-from-settings" type="button">Ver informacion de la aplicación</button>
+      <button class="settings-link-btn settings-link-btn-updates" id="btn-check-updates" type="button">Buscar actualizaciones</button>
     </div>
 
     <div class="settings-block settings-services-block">
@@ -549,6 +564,14 @@ function setupSettingsEventListeners() {
     });
   }
 
+  const checkUpdatesBtn = document.getElementById('btn-check-updates');
+  if (checkUpdatesBtn) {
+    checkUpdatesBtn.addEventListener('click', () => {
+      closeSettings();
+      window.api.checkForUpdates();
+    });
+  }
+
   const toggles = elements.settingsList.querySelectorAll('.instance-toggle');
   toggles.forEach(toggle => {
     if (toggle.classList.contains('preference-toggle')) return;
@@ -613,6 +636,15 @@ function setupEventListeners() {
     }
   });
 
+  document.getElementById('btn-close-update-modal').addEventListener('click', closeUpdateModal);
+  document.getElementById('btn-update-later').addEventListener('click', closeUpdateModal);
+  document.getElementById('btn-update-download').addEventListener('click', () => {
+    window.api.downloadUpdate();
+  });
+  document.getElementById('btn-update-install').addEventListener('click', () => {
+    window.api.installUpdate();
+  });
+
   document.addEventListener('click', (e) => {
     if (!elements.instancePopup.contains(e.target) && 
         !e.target.closest('.service-btn')) {
@@ -627,6 +659,7 @@ function setupEventListeners() {
       closeAddName();
       closeConfirmDelete();
       closeAboutApp();
+      closeUpdateModal();
       hideInstancePopup();
     }
   });
@@ -658,6 +691,69 @@ function closeAboutApp() {
     elements.aboutAppModal.classList.add('hidden');
     syncNativeViewVisibility();
   }, 200);
+}
+
+function showUpdateModal() {
+  elements.updateModal.classList.add('visible');
+  elements.updateModal.classList.remove('hidden');
+  syncNativeViewVisibility();
+}
+
+function closeUpdateModal() {
+  elements.updateModal.classList.remove('visible');
+  setTimeout(() => {
+    elements.updateModal.classList.add('hidden');
+    syncNativeViewVisibility();
+  }, 200);
+}
+
+function handleUpdateStatus(data) {
+  switch (data.status) {
+    case 'available':
+      elements.updateModalTitle.textContent = 'Actualizacion disponible';
+      elements.updateModalMessage.textContent = 'La version ' + data.version + ' esta disponible. ¿Deseas descargarla?';
+      elements.updateProgressContainer.classList.add('hidden');
+      elements.btnUpdateDownload.classList.remove('hidden');
+      elements.btnUpdateInstall.classList.add('hidden');
+      elements.btnUpdateLater.classList.remove('hidden');
+      elements.btnUpdateLater.textContent = 'Mas tarde';
+      showUpdateModal();
+      break;
+
+    case 'downloading':
+      elements.updateModalTitle.textContent = 'Descargando actualizacion';
+      elements.updateModalMessage.textContent = 'Descargando...';
+      elements.updateProgressContainer.classList.remove('hidden');
+      elements.updateProgressFill.style.width = data.percent + '%';
+      elements.updateProgressText.textContent = data.percent + '%';
+      elements.btnUpdateDownload.classList.add('hidden');
+      elements.btnUpdateInstall.classList.add('hidden');
+      elements.btnUpdateLater.classList.add('hidden');
+      break;
+
+    case 'downloaded':
+      elements.updateModalTitle.textContent = 'Actualizacion lista';
+      elements.updateModalMessage.textContent = 'La actualizacion se descargo. Reinicia para aplicarla.';
+      elements.updateProgressContainer.classList.add('hidden');
+      elements.btnUpdateDownload.classList.add('hidden');
+      elements.btnUpdateInstall.classList.remove('hidden');
+      elements.btnUpdateLater.classList.remove('hidden');
+      elements.btnUpdateLater.textContent = 'Mas tarde';
+      break;
+
+    case 'not-available':
+      break;
+
+    case 'error':
+      elements.updateModalTitle.textContent = 'Error de actualizacion';
+      elements.updateModalMessage.textContent = data.message || 'No se pudo buscar actualizaciones.';
+      elements.updateProgressContainer.classList.add('hidden');
+      elements.btnUpdateDownload.classList.add('hidden');
+      elements.btnUpdateInstall.classList.add('hidden');
+      elements.btnUpdateLater.classList.remove('hidden');
+      elements.btnUpdateLater.textContent = 'Cerrar';
+      break;
+  }
 }
 
 function openSettings() {

@@ -1,6 +1,6 @@
 {
   "name": "mensajeriafur",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "MensajeriaFur - Todas tus apps de mensajeria en un solo lugar",
   "main": "src/main.js",
   "scripts": {
@@ -32,6 +32,13 @@
       ]
     },
     "afterSign": "scripts/notarize.js",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "furthurr",
+        "repo": "mensajeriaFur"
+      }
+    ],
     "artifactName": "${productName}-${arch}.${ext}",
     "directories": {
       "output": "dist"
@@ -44,6 +51,7 @@
     ]
   },
   "dependencies": {
-    "electron-store": "^8.2.0"
+    "electron-store": "^8.2.0",
+    "electron-updater": "^6.8.3"
   }
 }

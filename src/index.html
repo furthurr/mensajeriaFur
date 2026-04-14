@@ -199,6 +199,30 @@
     </div>
   </div>
 
+  <!-- Update Modal -->
+  <div id="update-modal" class="modal hidden">
+    <div class="modal-content update-modal-content">
+      <div class="modal-header">
+        <h3 id="update-modal-title">Actualizacion disponible</h3>
+        <button class="btn-close-modal" id="btn-close-update-modal">&times;</button>
+      </div>
+      <div class="modal-body update-modal-body">
+        <p id="update-modal-message">Una nueva version esta disponible.</p>
+        <div id="update-progress-container" class="hidden">
+          <div class="update-progress-bar">
+            <div class="update-progress-fill" id="update-progress-fill"></div>
+          </div>
+          <span class="update-progress-text" id="update-progress-text">0%</span>
+        </div>
+      </div>
+      <div class="modal-footer" id="update-modal-footer">
+        <button class="btn-cancel" id="btn-update-later">Mas tarde</button>
+        <button class="btn-primary" id="btn-update-download">Descargar</button>
+        <button class="btn-primary hidden" id="btn-update-install">Reiniciar y actualizar</button>
+      </div>
+    </div>
+  </div>
+
   <script src="renderer.js"></script>
 </body>
 </html>

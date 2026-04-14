@@ -2,6 +2,7 @@ const { app, BrowserWindow, WebContentsView, ipcMain, session, Menu, shell, desk
 const path = require('path');
 const crypto = require('crypto');
 const Store = require('electron-store');
+const { autoUpdater } = require('electron-updater');
 
 const APP_NAME = 'MensajeriaFur';
 const APP_ICON_PATH = path.join(__dirname, '..', 'icono.png');
@@ -569,6 +570,53 @@ function setupIpcHandlers() {
       thumbnail: source.thumbnail.toDataURL()
     }));
   });
+
+  ipcMain.on('check-for-updates', () => {
+    autoUpdater.checkForUpdates().catch(() => {});
+  });
+
+  ipcMain.on('download-update', () => {
+    autoUpdater.downloadUpdate().catch(() => {});
+  });
+
+  ipcMain.on('install-update', () => {
+    autoUpdater.quitAndInstall();
+  });
+}
+
+function sendUpdateStatus(data) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('update-status', data);
+  }
+}
+
+function setupAutoUpdater() {
+  autoUpdater.autoDownload = false;
+  autoUpdater.autoInstallOnAppQuit = true;
+
+  autoUpdater.on('checking-for-update', () => {
+    sendUpdateStatus({ status: 'checking' });
+  });
+
+  autoUpdater.on('update-available', (info) => {
+    sendUpdateStatus({ status: 'available', version: info.version, releaseNotes: info.releaseNotes });
+  });
+
+  autoUpdater.on('update-not-available', () => {
+    sendUpdateStatus({ status: 'not-available' });
+  });
+
+  autoUpdater.on('download-progress', (progress) => {
+    sendUpdateStatus({ status: 'downloading', percent: Math.round(progress.percent) });
+  });
+
+  autoUpdater.on('update-downloaded', () => {
+    sendUpdateStatus({ status: 'downloaded' });
+  });
+
+  autoUpdater.on('error', (err) => {
+    sendUpdateStatus({ status: 'error', message: err?.message || 'Error desconocido' });
+  });
 }
 
 app.whenReady().then(() => {
@@ -591,7 +639,14 @@ app.whenReady().then(() => {
   createWindow();
   console.log('Window created, rebuilding menu...');
   rebuildMenu();
+  console.log('Setting up auto-updater...');
+  setupAutoUpdater();
   console.log('All done!');
+
+  // Auto-check for updates 5 seconds after launch
+  setTimeout(() => {
+    autoUpdater.checkForUpdates().catch(() => {});
+  }, 5000);
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
