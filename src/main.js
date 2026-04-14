@@ -1,0 +1,568 @@
+const { app, BrowserWindow, WebContentsView, ipcMain, session, Menu, shell } = require('electron');
+const path = require('path');
+const crypto = require('crypto');
+const Store = require('electron-store');
+
+const APP_NAME = 'MensajeriaFur';
+const APP_ICON_PATH = path.join(__dirname, '..', 'icono.png');
+const DEFAULT_PREFERENCES = {
+  theme: 'system',
+  openAtLogin: false,
+  restoreLastActiveInstance: true,
+  confirmBeforeDelete: true,
+  notificationsEnabled: true,
+  soundsEnabled: true
+};
+
+const SERVICE_TYPES = {
+  whatsapp:  { name: 'WhatsApp', url: 'https://web.whatsapp.com', color: '#25D366', userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' },
+  telegram:  { name: 'Telegram', url: 'https://web.telegram.org/k/', color: '#0088cc', userAgent: null },
+  slack:     { name: 'Slack', url: 'https://app.slack.com/client', color: '#4A154B', userAgent: null },
+  messenger: { name: 'Messenger', url: 'https://www.messenger.com', color: '#006AFF', userAgent: null },
+  discord:   { name: 'Discord', url: 'https://discord.com/app', color: '#5865F2', userAgent: null },
+  googlechat: { name: 'Google Chat', url: 'https://chat.google.com', color: '#34A853', userAgent: null },
+  teams: {
+    name: 'Microsoft Teams',
+    url: 'https://teams.microsoft.com/v2/?clientexperience=t2',
+    color: '#6264A7',
+    userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36 Edg/135.0.0.0'
+  },
+  signal: { name: 'Signal', url: 'https://signal.org', color: '#3A76F0', userAgent: null },
+  skype: { name: 'Skype', url: 'https://web.skype.com', color: '#00AFF0', userAgent: null },
+  wechat: { name: 'WeChat', url: 'https://web.wechat.com', color: '#07C160', userAgent: null },
+  line: { name: 'Line', url: 'https://access.line.me', color: '#00C300', userAgent: null },
+  viber: { name: 'Viber', url: 'https://account.viber.com/en/login', color: '#7360F2', userAgent: null },
+  instagram: { name: 'Instagram Direct', url: 'https://www.instagram.com/direct/inbox/', color: '#E4405F', userAgent: null },
+  xdm: { name: 'X / Twitter DM', url: 'https://x.com/messages', color: '#111111', userAgent: null },
+  linkedin: { name: 'LinkedIn Messaging', url: 'https://www.linkedin.com/messaging/', color: '#0A66C2', userAgent: null },
+  zendesk: { name: 'Zendesk', url: 'https://www.zendesk.com', color: '#03363D', userAgent: null },
+  intercom: { name: 'Intercom', url: 'https://app.intercom.com', color: '#1F8DED', userAgent: null },
+  googlemessages: { name: 'Google Messages', url: 'https://messages.google.com/web', color: '#1A73E8', userAgent: null }
+};
+
+let mainWindow;
+let activeInstanceId = null;
+const instanceViews = {};
+const SIDEBAR_WIDTH = 70;
+const TITLEBAR_HEIGHT = 0;
+let activeViewVisible = true;
+let activeViewAttached = false;
+
+let store;
+let instances = [];
+let sidebarOrder = [];
+let settingsOrder = [];
+let preferences = { ...DEFAULT_PREFERENCES };
+
+function sanitizePreferences(data = {}) {
+  const next = { ...DEFAULT_PREFERENCES, ...data };
+  if (!['system', 'dark', 'light'].includes(next.theme)) {
+    next.theme = DEFAULT_PREFERENCES.theme;
+  }
+  next.openAtLogin = Boolean(next.openAtLogin);
+  next.restoreLastActiveInstance = Boolean(next.restoreLastActiveInstance);
+  next.confirmBeforeDelete = Boolean(next.confirmBeforeDelete);
+  next.notificationsEnabled = Boolean(next.notificationsEnabled);
+  next.soundsEnabled = Boolean(next.soundsEnabled);
+  return next;
+}
+
+function applyLoginItemSettings() {
+  app.setLoginItemSettings({
+    openAtLogin: preferences.openAtLogin
+  });
+}
+
+function applySoundPreference() {
+  Object.values(instanceViews).forEach(view => {
+    if (view?.webContents) {
+      view.webContents.setAudioMuted(!preferences.soundsEnabled);
+    }
+  });
+}
+
+function updatePreferences(data) {
+  preferences = sanitizePreferences({ ...preferences, ...data });
+  store.set('preferences', preferences);
+  applyLoginItemSettings();
+  applySoundPreference();
+  return preferences;
+}
+
+function initStore() {
+  store = new Store({
+    defaults: {
+      instances: [],
+      sidebarOrder: [],
+      settingsOrder: [],
+      activeInstanceId: null,
+      preferences: DEFAULT_PREFERENCES
+    }
+  });
+
+  instances = store.get('instances');
+  sidebarOrder = store.get('sidebarOrder');
+  settingsOrder = store.get('settingsOrder');
+  activeInstanceId = store.get('activeInstanceId');
+  preferences = sanitizePreferences(store.get('preferences'));
+  store.set('preferences', preferences);
+
+  if (activeInstanceId && !instances.some(instance => instance.id === activeInstanceId && instance.enabled)) {
+    activeInstanceId = null;
+    store.set('activeInstanceId', null);
+  }
+}
+
+function getInstances() {
+  return instances;
+}
+
+function getSidebarOrder() {
+  return sidebarOrder;
+}
+
+function getSettingsOrder() {
+  return settingsOrder;
+}
+
+function createWindow() {
+  const { screen } = require('electron');
+  const primaryDisplay = screen.getPrimaryDisplay();
+  const { width, height } = primaryDisplay.workAreaSize;
+
+  mainWindow = new BrowserWindow({
+    title: APP_NAME,
+    width: Math.min(1200, width - 100),
+    height: Math.min(800, height - 100),
+    x: 50,
+    y: 50,
+    backgroundColor: '#1a1a2e',
+    icon: APP_ICON_PATH,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, 'preload.js')
+    }
+  });
+
+  mainWindow.loadFile(path.join(__dirname, 'index.html'));
+
+  mainWindow.on('resize', () => {
+    if (activeInstanceId && instanceViews[activeInstanceId]) {
+      updateViewBounds(instanceViews[activeInstanceId]);
+    }
+  });
+
+  mainWindow.on('closed', () => {
+    mainWindow = null;
+  });
+
+  mainWindow.webContents.on('did-finish-load', () => {
+    console.log('Window finished loading');
+
+    const enabledInstances = getEnabledSidebarInstances();
+    if (!enabledInstances.length) {
+      return;
+    }
+
+    const preferredInstanceId = preferences.restoreLastActiveInstance ? activeInstanceId : null;
+    const initialInstanceId = preferredInstanceId && enabledInstances.some(instance => instance.id === preferredInstanceId)
+      ? preferredInstanceId
+      : enabledInstances[0].id;
+
+    switchToInstance(initialInstanceId);
+  });
+
+  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+    console.log('Load failed:', errorCode, errorDescription);
+  });
+}
+
+function getOrCreateView(instance) {
+  if (instanceViews[instance.id]) {
+    return instanceViews[instance.id];
+  }
+
+  const ses = session.fromPartition(`persist:${instance.id}`);
+
+  ses.setPermissionRequestHandler((webContents, permission, callback) => {
+    const allowed = ['notifications', 'media', 'mediaKeySystem', 'clipboard-read', 'clipboard-sanitized-write'];
+    if (permission === 'notifications' && !preferences.notificationsEnabled) {
+      callback(false);
+      return;
+    }
+    callback(allowed.includes(permission));
+  });
+
+  const serviceType = SERVICE_TYPES[instance.serviceType];
+  const view = new WebContentsView({
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      session: ses,
+      spellcheck: true
+    }
+  });
+
+  if (serviceType.userAgent) {
+    view.webContents.setUserAgent(serviceType.userAgent);
+  }
+
+  view.webContents.setAudioMuted(!preferences.soundsEnabled);
+
+  view.webContents.setWindowOpenHandler(({ url }) => {
+    shell.openExternal(url);
+    return { action: 'deny' };
+  });
+
+  instanceViews[instance.id] = view;
+  return view;
+}
+
+function switchToInstance(instanceId) {
+  const instance = instances.find(i => i.id === instanceId);
+  if (!instance) return;
+  const serviceType = SERVICE_TYPES[instance.serviceType];
+
+  if (activeInstanceId && instanceViews[activeInstanceId] && activeViewAttached) {
+    try {
+      mainWindow.contentView.removeChildView(instanceViews[activeInstanceId]);
+    } catch (e) {
+    }
+    activeViewAttached = false;
+  }
+
+  const view = getOrCreateView(instance);
+
+  const currentUrl = view.webContents.getURL();
+  const needsTeamsMigration = instance.serviceType === 'teams' && (
+    currentUrl.includes('/unsupported-browser') ||
+    /^https:\/\/teams\.microsoft\.com\/?$/.test(currentUrl)
+  );
+
+  if (!currentUrl || currentUrl === '' || currentUrl === 'about:blank' || needsTeamsMigration) {
+    view.webContents.loadURL(serviceType.url);
+  }
+
+  activeInstanceId = instanceId;
+  store.set('activeInstanceId', activeInstanceId);
+  setActiveViewVisible(activeViewVisible);
+
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('active-instance-changed', instanceId);
+    mainWindow.webContents.send('instances-changed', instances);
+  }
+
+  rebuildMenu();
+}
+
+function updateViewBounds(view) {
+  if (!view || !mainWindow || mainWindow.isDestroyed()) return;
+  const [width, height] = mainWindow.getContentSize();
+  view.setBounds({
+    x: SIDEBAR_WIDTH,
+    y: TITLEBAR_HEIGHT,
+    width: Math.max(0, width - SIDEBAR_WIDTH),
+    height: Math.max(0, height - TITLEBAR_HEIGHT)
+  });
+}
+
+function setActiveViewVisible(visible) {
+  activeViewVisible = visible;
+
+  if (!mainWindow || mainWindow.isDestroyed() || !activeInstanceId) {
+    return;
+  }
+
+  const view = instanceViews[activeInstanceId];
+  if (!view) {
+    return;
+  }
+
+  if (visible) {
+    if (!activeViewAttached) {
+      mainWindow.contentView.addChildView(view);
+      activeViewAttached = true;
+    }
+    updateViewBounds(view);
+    return;
+  }
+
+  if (activeViewAttached) {
+    try {
+      mainWindow.contentView.removeChildView(view);
+    } catch (e) {
+    }
+    activeViewAttached = false;
+  }
+}
+
+function getEnabledSidebarInstances() {
+  return sidebarOrder
+    .map(id => instances.find(i => i.id === id))
+    .filter(i => i && i.enabled);
+}
+
+function rebuildMenu() {
+  const enabledInstances = getEnabledSidebarInstances();
+
+  const serviceSubmenu = enabledInstances.map((instance, index) => {
+    const serviceType = SERVICE_TYPES[instance.serviceType];
+    return {
+      label: `${serviceType.name} - ${instance.name}`,
+      accelerator: index < 9 ? `CmdOrCtrl+${index + 1}` : null,
+      click: () => switchToInstance(instance.id)
+    };
+  });
+
+  const template = [
+    {
+      label: app.name,
+      submenu: [
+        { role: 'about', label: 'Acerca de MensajeríaFur' },
+        { type: 'separator' },
+        { role: 'hide', label: 'Ocultar' },
+        { role: 'hideOthers', label: 'Ocultar Otros' },
+        { role: 'unhide', label: 'Mostrar Todo' },
+        { type: 'separator' },
+        { role: 'quit', label: 'Salir' }
+      ]
+    },
+    {
+      label: 'Editar',
+      submenu: [
+        { role: 'undo', label: 'Deshacer' },
+        { role: 'redo', label: 'Rehacer' },
+        { type: 'separator' },
+        { role: 'cut', label: 'Cortar' },
+        { role: 'copy', label: 'Copiar' },
+        { role: 'paste', label: 'Pegar' },
+        { role: 'selectAll', label: 'Seleccionar Todo' }
+      ]
+    },
+    {
+      label: 'Ver',
+      submenu: [
+        { role: 'reload', label: 'Recargar' },
+        { role: 'forceReload', label: 'Forzar Recarga' },
+        { role: 'toggleDevTools', label: 'Herramientas de Desarrollo' },
+        { type: 'separator' },
+        { role: 'resetZoom', label: 'Zoom Original' },
+        { role: 'zoomIn', label: 'Acercar' },
+        { role: 'zoomOut', label: 'Alejar' },
+        { type: 'separator' },
+        { role: 'togglefullscreen', label: 'Pantalla Completa' }
+      ]
+    },
+    {
+      label: 'Servicios',
+      submenu: serviceSubmenu.length > 0 ? serviceSubmenu : [{ label: 'No hay servicios habilitados', enabled: false }]
+    },
+    {
+      label: 'Ventana',
+      submenu: [
+        { role: 'minimize', label: 'Minimizar' },
+        { role: 'zoom', label: 'Zoom' },
+        { role: 'close', label: 'Cerrar' }
+      ]
+    }
+  ];
+
+  const menu = Menu.buildFromTemplate(template);
+  Menu.setApplicationMenu(menu);
+}
+
+function addInstance(serviceType, name) {
+  const newInstance = {
+    id: crypto.randomUUID(),
+    serviceType,
+    name: name || `${SERVICE_TYPES[serviceType].name} ${instances.filter(i => i.serviceType === serviceType).length + 1}`,
+    enabled: true
+  };
+  instances.push(newInstance);
+  store.set('instances', instances);
+
+  sidebarOrder.push(newInstance.id);
+  store.set('sidebarOrder', sidebarOrder);
+
+  settingsOrder.push(newInstance.id);
+  store.set('settingsOrder', settingsOrder);
+
+  if (!activeInstanceId) {
+    activeInstanceId = newInstance.id;
+    store.set('activeInstanceId', activeInstanceId);
+  }
+
+  rebuildMenu();
+  return newInstance;
+}
+
+function updateInstance(id, data) {
+  const index = instances.findIndex(i => i.id === id);
+  if (index === -1) return null;
+
+  instances[index] = { ...instances[index], ...data };
+  store.set('instances', instances);
+
+  if (data.enabled !== undefined) {
+    rebuildMenu();
+  }
+
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('instances-changed', instances);
+  }
+
+  return instances[index];
+}
+
+function deleteInstance(id) {
+  const instance = instances.find(i => i.id === id);
+  if (!instance) return false;
+
+  if (instanceViews[id]) {
+    if (activeViewAttached && activeInstanceId === id) {
+      try {
+        mainWindow.contentView.removeChildView(instanceViews[id]);
+      } catch (e) {
+      }
+      activeViewAttached = false;
+    }
+    delete instanceViews[id];
+  }
+
+  session.fromPartition(`persist:${id}`).clearStorageData();
+
+  instances = instances.filter(i => i.id !== id);
+  store.set('instances', instances);
+
+  sidebarOrder = sidebarOrder.filter(oid => oid !== id);
+  store.set('sidebarOrder', sidebarOrder);
+
+  settingsOrder = settingsOrder.filter(oid => oid !== id);
+  store.set('settingsOrder', settingsOrder);
+
+  if (activeInstanceId === id) {
+    const enabledInstances = getEnabledSidebarInstances();
+    if (enabledInstances.length > 0) {
+      switchToInstance(enabledInstances[0].id);
+    } else {
+      activeInstanceId = null;
+      store.set('activeInstanceId', null);
+    }
+  }
+
+  rebuildMenu();
+
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('instances-changed', instances);
+  }
+
+  return true;
+}
+
+function reorderSidebar(order) {
+  sidebarOrder = order;
+  store.set('sidebarOrder', sidebarOrder);
+  rebuildMenu();
+}
+
+function reorderSettings(order) {
+  settingsOrder = order;
+  store.set('settingsOrder', settingsOrder);
+}
+
+function setupIpcHandlers() {
+  ipcMain.handle('get-instances', () => instances);
+
+  ipcMain.handle('get-sidebar-order', () => sidebarOrder);
+
+  ipcMain.handle('get-settings-order', () => settingsOrder);
+
+  ipcMain.handle('get-service-types', () => {
+    return Object.entries(SERVICE_TYPES).map(([id, data]) => ({
+      id,
+      name: data.name,
+      color: data.color
+    }));
+  });
+
+  ipcMain.handle('add-instance', (event, serviceType, name) => {
+    if (!SERVICE_TYPES[serviceType]) {
+      return { error: 'Invalid service type' };
+    }
+    return addInstance(serviceType, name);
+  });
+
+  ipcMain.handle('update-instance', (event, id, data) => {
+    return updateInstance(id, data);
+  });
+
+  ipcMain.handle('delete-instance', (event, id) => {
+    return deleteInstance(id);
+  });
+
+  ipcMain.on('switch-instance', (event, instanceId) => {
+    switchToInstance(instanceId);
+  });
+
+  ipcMain.on('reload-instance', (event, instanceId) => {
+    if (instanceViews[instanceId]) {
+      instanceViews[instanceId].webContents.reload();
+    }
+  });
+
+  ipcMain.on('set-active-view-visible', (event, visible) => {
+    setActiveViewVisible(Boolean(visible));
+  });
+
+  ipcMain.on('reorder-sidebar', (event, order) => {
+    reorderSidebar(order);
+  });
+
+  ipcMain.on('reorder-settings', (event, order) => {
+    reorderSettings(order);
+  });
+
+  ipcMain.handle('get-active-instance', () => activeInstanceId);
+  ipcMain.handle('get-preferences', () => preferences);
+  ipcMain.handle('update-preferences', (event, data) => updatePreferences(data));
+
+  ipcMain.handle('get-app-info', () => ({
+    name: app.getName(),
+    version: app.getVersion()
+  }));
+
+  ipcMain.handle('open-external', async (event, url) => {
+    await shell.openExternal(url);
+  });
+}
+
+app.whenReady().then(() => {
+  app.setName(APP_NAME);
+  if (process.platform === 'darwin' && app.dock) {
+    app.dock.setIcon(APP_ICON_PATH);
+  }
+
+  console.log('App ready, initializing store...');
+  initStore();
+  applyLoginItemSettings();
+  console.log('Store initialized, setting up IPC...');
+  setupIpcHandlers();
+  console.log('IPC set up, creating window...');
+  createWindow();
+  console.log('Window created, rebuilding menu...');
+  rebuildMenu();
+  console.log('All done!');
+
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createWindow();
+    }
+  });
+});
+
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') {
+    app.quit();
+  }
+});

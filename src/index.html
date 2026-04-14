@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MensajeríaFur</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Sidebar con servicios -->
+  <div id="sidebar">
+    <img src="../icono.png" alt="MensajeríaFur" id="sidebar-app-icon" title="Acerca de MensajeriaFur">
+    <div id="service-list"></div>
+    <div id="sidebar-bottom">
+      <button id="btn-settings" class="sidebar-btn" title="Agregar servicio" aria-label="Agregar servicio">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 5v14"></path>
+          <path d="M5 12h14"></path>
+        </svg>
+      </button>
+      <div class="sidebar-divider" aria-hidden="true"></div>
+      <button id="btn-open-settings" class="sidebar-btn" title="Ajustes" aria-label="Abrir ajustes">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82L4.21 7.2a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"></path>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Pantalla de bienvenida -->
+  <div id="welcome">
+    <div id="welcome-content">
+      <div class="welcome-copy">
+        <span class="welcome-badge">Mensajería centralizada</span>
+        <img src="../icono.png" alt="MensajeríaFur" id="welcome-logo">
+        <h1>Tu centro de mensajeria en un solo lugar</h1>
+        <p class="welcome-lead">Abre WhatsApp, Telegram, Slack y mas servicios desde una sola app, con un acceso rapido y ordenado.</p>
+        <div class="welcome-actions">
+          <button id="welcome-primary-action" class="welcome-btn welcome-btn-primary">Agregar primer servicio</button>
+          <button id="welcome-secondary-action" class="welcome-btn welcome-btn-secondary">Ver servicios disponibles</button>
+        </div>
+        <p class="hint">Empieza usando el boton + o cualquiera de estas acciones.</p>
+      </div>
+
+      <div class="welcome-preview">
+        <div class="welcome-preview-glow"></div>
+        <div class="welcome-panel">
+          <div class="welcome-panel-top">
+            <span class="welcome-panel-title">Servicios compatibles</span>
+            <span class="welcome-panel-caption">Multiples cuentas</span>
+          </div>
+
+          <div class="welcome-service-chips" id="welcome-service-chips"></div>
+
+          <div class="welcome-feature-list">
+            <div class="welcome-feature-card">
+              <strong>Organiza tus apps</strong>
+              <span>Reordena servicios en la barra lateral y manten todo accesible.</span>
+            </div>
+            <div class="welcome-feature-card">
+              <strong>Separa tus cuentas</strong>
+              <span>Crea instancias para trabajo, personal o equipos sin mezclar sesiones.</span>
+            </div>
+            <div class="welcome-feature-card">
+              <strong>Empieza en segundos</strong>
+              <span>Agrega un servicio y accede desde una misma ventana.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading spinner -->
+  <div id="loading" class="hidden">
+    <div class="spinner"></div>
+    <p>Cargando servicio...</p>
+  </div>
+
+  <!-- Instance Popup (context menu for active instance) -->
+  <div id="instance-popup" class="popup hidden">
+    <div class="popup-header">
+      <span class="popup-icon" id="popup-icon"></span>
+      <span class="popup-name" id="popup-name"></span>
+    </div>
+    <div class="popup-divider"></div>
+    <button class="popup-item" id="popup-reload">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M23 4v6h-6M1 20v-6h6"></path>
+        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+      </svg>
+      <span>Recargar</span>
+    </button>
+    <button class="popup-item" id="popup-delete">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+      </svg>
+      <span>Eliminar</span>
+    </button>
+  </div>
+
+  <!-- Settings Panel (slide-up from bottom) -->
+  <div id="settings-overlay" class="overlay hidden"></div>
+  <div id="settings-panel" class="settings-panel hidden">
+    <div class="settings-drag-handle"></div>
+    <div class="settings-header">
+      <h2>Ajustes</h2>
+      <button id="btn-close-settings" class="btn-close">&times;</button>
+    </div>
+    <div class="settings-content" id="settings-list"></div>
+    <div class="settings-footer settings-footer-actions">
+      <button id="btn-add-service" class="btn-add-service">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+        Agregar servicio
+      </button>
+    </div>
+  </div>
+
+  <!-- Service Selector Modal -->
+  <div id="service-selector-modal" class="modal hidden">
+    <div class="modal-content service-selector-content">
+      <div class="modal-header">
+        <h3>Selecciona un servicio</h3>
+        <button class="btn-close-modal" id="btn-close-service-selector">&times;</button>
+      </div>
+      <div class="service-grid" id="service-grid"></div>
+    </div>
+  </div>
+
+  <!-- Add Name Modal -->
+  <div id="add-name-modal" class="modal hidden">
+    <div class="modal-content add-name-content">
+      <div class="modal-header">
+        <h3 id="add-name-title">Agregar servicio</h3>
+        <button class="btn-close-modal" id="btn-close-add-name">&times;</button>
+      </div>
+      <div class="modal-body">
+        <label for="instance-name">Nombre:</label>
+        <input type="text" id="instance-name" placeholder="ej: Trabajo, Personal, Familia">
+        <p class="name-hint">Dale un nombre para identificar esta instancia</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" id="btn-cancel-add">Cancelar</button>
+        <button class="btn-primary" id="btn-confirm-add">Agregar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirm Delete Modal -->
+  <div id="confirm-delete-modal" class="modal hidden">
+    <div class="modal-content confirm-content">
+      <div class="modal-header">
+        <h3>¿Eliminar "<span id="delete-instance-name"></span>"?</h3>
+        <button class="btn-close-modal" id="btn-close-confirm">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p>Se perderá el historial y datos de esta instancia.</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" id="btn-cancel-delete">Cancelar</button>
+        <button class="btn-danger" id="btn-confirm-delete">Eliminar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- About App Modal -->
+  <div id="about-app-modal" class="modal hidden">
+    <div class="modal-content about-app-content">
+      <img src="../mensajeriaFur_fondo.png" alt="MensajeriaFur" class="about-app-cover">
+      <div class="modal-header about-app-header">
+        <h3>Acerca de la aplicación</h3>
+        <button class="btn-close-modal" id="btn-close-about-app">&times;</button>
+      </div>
+      <div class="modal-body about-app-body">
+        <div class="about-app-main">
+          <img src="../icono.png" alt="MensajeriaFur" class="about-app-icon">
+          <div class="about-app-text">
+            <h4 id="about-app-name">MensajeriaFur</h4>
+            <p id="about-app-version">Versión 1.0.0</p>
+          </div>
+        </div>
+
+        <div class="about-author-card">
+          <img src="../pedro.png" alt="Pedro G. V." class="about-author-photo">
+          <div class="about-author-text">
+            <span class="about-author-label">Autor de la aplicación</span>
+            <strong>Pedro G. V. @furthurr</strong>
+          </div>
+        </div>
+
+        <button class="btn-primary about-github-link" id="about-github-link" type="button">
+          https://github.com/furthurr
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>

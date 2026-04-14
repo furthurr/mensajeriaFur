@@ -1,0 +1,42 @@
+{
+  "name": "mensajeriafur",
+  "version": "1.0.0",
+  "description": "MensajeriaFur - Todas tus apps de mensajeria en un solo lugar",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --mac",
+    "build:dmg": "electron-builder --mac dmg",
+    "build:zip": "electron-builder --mac zip"
+  },
+  "author": "PedroGomez",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^32.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "com.mensajeriafur.app",
+    "productName": "MensajeriaFur",
+    "mac": {
+      "category": "public.app-category.social-networking",
+      "icon": "icono.png",
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "icono.png",
+      "mensajeriaFur_fondo.png",
+      "pedro.png"
+    ]
+  },
+  "dependencies": {
+    "electron-store": "^8.2.0"
+  }
+}
