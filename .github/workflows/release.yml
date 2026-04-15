@@ -49,7 +49,7 @@ jobs:
           path: |
             dist/*.dmg
             dist/*.zip
-            dist/*.yml
+            dist/latest-mac.yml
             dist/*.blockmap
           if-no-files-found: error
 
@@ -60,5 +60,5 @@ jobs:
           files: |
             dist/*.dmg
             dist/*.zip
-            dist/*.yml
+            dist/latest-mac.yml
             dist/*.blockmap
