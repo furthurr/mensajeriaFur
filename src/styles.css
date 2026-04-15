@@ -917,6 +917,28 @@ body {
   border-color: rgba(255, 255, 255, 0.18);
 }
 
+.settings-link-btn-primary {
+  background: rgba(233, 69, 96, 0.14);
+  border-color: rgba(233, 69, 96, 0.35);
+  color: #fff0f3;
+}
+
+.settings-link-btn-primary:hover {
+  background: rgba(233, 69, 96, 0.22);
+  border-color: rgba(233, 69, 96, 0.5);
+}
+
+body[data-theme='light'] .settings-link-btn-primary {
+  background: rgba(233, 69, 96, 0.1);
+  border-color: rgba(233, 69, 96, 0.3);
+  color: #b4233d;
+}
+
+body[data-theme='light'] .settings-link-btn-primary:hover {
+  background: rgba(233, 69, 96, 0.16);
+  border-color: rgba(233, 69, 96, 0.4);
+}
+
 .settings-services-block {
   margin-bottom: 10px;
 }
@@ -1493,10 +1515,6 @@ body {
 
 body[data-theme='light'] .update-progress-bar {
   background: rgba(15, 23, 42, 0.1);
-}
-
-.settings-link-btn-updates {
-  margin-top: 8px;
 }
 
 /* ====== Drag States ====== */

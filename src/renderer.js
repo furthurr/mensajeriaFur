@@ -30,7 +30,7 @@ let selectedServiceType = null;
 let nativeViewVisible = true;
 let appInfo = {
   name: 'MensajeriaFur',
-  version: '1.0.0'
+  version: '1.0.2'
 };
 let preferences = {
   theme: 'system',
@@ -371,11 +371,18 @@ function renderSettingsPanel() {
 
     <div class="settings-block">
       <div class="settings-block-header">
+        <h3>Actualizaciones</h3>
+        <p>Busca nuevas versiones de MensajeriaFur y descargalas cuando quieras.</p>
+      </div>
+      <button class="settings-link-btn settings-link-btn-primary" id="btn-check-updates" type="button">Buscar actualizaciones</button>
+    </div>
+
+    <div class="settings-block">
+      <div class="settings-block-header">
         <h3>Acerca de</h3>
         <p>Informacion, autoria y enlaces del proyecto.</p>
       </div>
       <button class="settings-link-btn" id="btn-open-about-from-settings" type="button">Ver informacion de la aplicación</button>
-      <button class="settings-link-btn settings-link-btn-updates" id="btn-check-updates" type="button">Buscar actualizaciones</button>
     </div>
 
     <div class="settings-block settings-services-block">
