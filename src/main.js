@@ -534,6 +534,35 @@ function setupIpcHandlers() {
     }
   });
 
+  ipcMain.on('show-instance-context-menu', (event, instanceId) => {
+    const instance = instances.find(item => item.id === instanceId);
+    if (!instance) {
+      return;
+    }
+
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win) {
+      return;
+    }
+
+    const menu = Menu.buildFromTemplate([
+      {
+        label: 'Recargar',
+        click: () => {
+          event.sender.send('instance-context-action', { action: 'reload', instanceId });
+        }
+      },
+      {
+        label: 'Eliminar',
+        click: () => {
+          event.sender.send('instance-context-action', { action: 'delete', instanceId });
+        }
+      }
+    ]);
+
+    menu.popup({ window: win });
+  });
+
   ipcMain.on('set-active-view-visible', (event, visible) => {
     setActiveViewVisible(Boolean(visible));
   });

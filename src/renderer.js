@@ -30,7 +30,7 @@ let selectedServiceType = null;
 let nativeViewVisible = true;
 let appInfo = {
   name: 'MensajeriaFur',
-  version: '1.0.4'
+  version: '1.0.5'
 };
 let preferences = {
   theme: 'system',
@@ -41,6 +41,7 @@ let preferences = {
   soundsEnabled: true
 };
 let themeMediaQuery = null;
+let manualUpdateCheckRequested = false;
 
 const elements = {};
 
@@ -49,7 +50,6 @@ function cacheElements() {
   elements.welcome = document.getElementById('welcome');
   elements.loading = document.getElementById('loading');
   elements.settingsPanel = document.getElementById('settings-panel');
-  elements.settingsOverlay = document.getElementById('settings-overlay');
   elements.settingsList = document.getElementById('settings-list');
   elements.instancePopup = document.getElementById('instance-popup');
   elements.popupIcon = document.getElementById('popup-icon');
@@ -111,6 +111,17 @@ async function init() {
   window.api.onUpdateStatus((data) => {
     handleUpdateStatus(data);
   });
+
+  window.api.onInstanceContextAction(({ action, instanceId }) => {
+    if (action === 'reload') {
+      window.api.reloadInstance(instanceId);
+      return;
+    }
+
+    if (action === 'delete') {
+      requestDeleteInstance(instanceId);
+    }
+  });
 }
 
 function renderSidebar() {
@@ -168,11 +179,9 @@ function attachSidebarEvents() {
   const buttons = elements.serviceList.querySelectorAll('.service-btn');
   
   buttons.forEach(btn => {
-    btn.addEventListener('click', (e) => {
+    btn.addEventListener('click', () => {
       const instanceId = btn.getAttribute('data-instance-id');
-      if (instanceId === activeInstanceId) {
-        showInstancePopup(instanceId, btn);
-      } else {
+      if (instanceId !== activeInstanceId) {
         switchToInstance(instanceId);
       }
     });
@@ -181,14 +190,13 @@ function attachSidebarEvents() {
       e.preventDefault();
       e.stopPropagation();
       const instanceId = btn.getAttribute('data-instance-id');
-      showInstancePopup(instanceId, btn);
+      window.api.showInstanceContextMenu(instanceId);
     });
   });
 }
 
 function syncNativeViewVisibility() {
   const shouldHideNativeView =
-    !elements.instancePopup.classList.contains('hidden') ||
     elements.settingsPanel.classList.contains('visible') ||
     !elements.serviceSelectorModal.classList.contains('hidden') ||
     !elements.addNameModal.classList.contains('hidden') ||
@@ -385,95 +393,9 @@ function renderSettingsPanel() {
       <button class="settings-link-btn" id="btn-open-about-from-settings" type="button">Ver informacion de la aplicación</button>
     </div>
 
-    <div class="settings-block settings-services-block">
-      <div class="settings-block-header">
-        <h3>Servicios</h3>
-        <p>Activa, desactiva y ordena tus instancias.</p>
-      </div>
-      <div id="settings-services-groups"></div>
-    </div>
   `;
 
   elements.settingsList.appendChild(preferencesSection);
-  const servicesContainer = document.getElementById('settings-services-groups');
-
-  const groupedInstances = {};
-  instances.forEach(instance => {
-    if (!groupedInstances[instance.serviceType]) {
-      groupedInstances[instance.serviceType] = [];
-    }
-    groupedInstances[instance.serviceType].push(instance);
-  });
-
-  const orderedServiceTypes = [
-    'whatsapp',
-    'telegram',
-    'slack',
-    'messenger',
-    'discord',
-    'googlechat',
-    'teams',
-    'signal',
-    'skype',
-    'wechat',
-    'line',
-    'viber',
-    'instagram',
-    'xdm',
-    'linkedin',
-    'zendesk',
-    'intercom',
-    'googlemessages'
-  ];
-  
-  orderedServiceTypes.forEach(serviceTypeId => {
-    const serviceType = serviceTypes.find(st => st.id === serviceTypeId);
-    if (!serviceType || !groupedInstances[serviceTypeId]?.length) return;
-
-    const groupEl = document.createElement('div');
-    groupEl.className = 'service-group';
-    groupEl.innerHTML = `
-      <div class="service-group-header" draggable="true" data-group="${serviceTypeId}">
-        <span class="group-icon">${SERVICE_ICONS[serviceTypeId]}</span>
-        <span>${serviceType.name}</span>
-      </div>
-    `;
-
-    const groupInstances = groupedInstances[serviceTypeId];
-    groupInstances.forEach(instance => {
-      const itemEl = document.createElement('div');
-      itemEl.className = 'instance-item';
-      itemEl.setAttribute('draggable', 'true');
-      itemEl.setAttribute('data-instance-id', instance.id);
-      
-      const isLast = groupInstances.length === 1;
-      
-      itemEl.innerHTML = `
-        <div class="instance-drag">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="3" y1="6" x2="21" y2="6"></line>
-            <line x1="3" y1="12" x2="21" y2="12"></line>
-            <line x1="3" y1="18" x2="21" y2="18"></line>
-          </svg>
-        </div>
-        <div class="instance-icon">${SERVICE_ICONS[instance.serviceType]}</div>
-        <div class="instance-info">
-          <div class="instance-name">${instance.name}</div>
-        </div>
-        <div class="instance-toggle ${instance.enabled ? 'active' : ''}" data-instance-id="${instance.id}"></div>
-        <div class="instance-actions">
-          <button class="instance-btn btn-delete" data-instance-id="${instance.id}" title="Eliminar">×</button>
-          ${!isLast ? '' : `<button class="instance-btn btn-add" data-service-type="${instance.serviceType}" title="Agregar">+</button>`}
-        </div>
-      `;
-
-      groupEl.appendChild(itemEl);
-    });
-
-    servicesContainer.appendChild(groupEl);
-  });
-
-  setupSettingsDragAndDrop();
   setupSettingsEventListeners();
 }
 
@@ -574,7 +496,7 @@ function setupSettingsEventListeners() {
   const checkUpdatesBtn = document.getElementById('btn-check-updates');
   if (checkUpdatesBtn) {
     checkUpdatesBtn.addEventListener('click', () => {
-      closeSettings();
+      manualUpdateCheckRequested = true;
       window.api.checkForUpdates();
     });
   }
@@ -621,7 +543,11 @@ function setupEventListeners() {
   document.getElementById('welcome-primary-action').addEventListener('click', () => showServiceSelector());
   document.getElementById('welcome-secondary-action').addEventListener('click', () => showServiceSelector());
   document.getElementById('btn-close-settings').addEventListener('click', closeSettings);
-  elements.settingsOverlay.addEventListener('click', closeSettings);
+  elements.settingsPanel.addEventListener('click', (e) => {
+    if (e.target === elements.settingsPanel) {
+      closeSettings();
+    }
+  });
 
   document.getElementById('btn-add-service').addEventListener('click', () => showServiceSelector());
 
@@ -716,7 +642,22 @@ function closeUpdateModal() {
 
 function handleUpdateStatus(data) {
   switch (data.status) {
+    case 'checking':
+      if (!manualUpdateCheckRequested) {
+        break;
+      }
+      elements.updateModalTitle.textContent = 'Buscando actualizaciones';
+      elements.updateModalMessage.textContent = 'Comprobando si hay una nueva version disponible...';
+      elements.updateProgressContainer.classList.add('hidden');
+      elements.btnUpdateDownload.classList.add('hidden');
+      elements.btnUpdateInstall.classList.add('hidden');
+      elements.btnUpdateLater.classList.remove('hidden');
+      elements.btnUpdateLater.textContent = 'Cerrar';
+      showUpdateModal();
+      break;
+
     case 'available':
+      manualUpdateCheckRequested = false;
       elements.updateModalTitle.textContent = 'Actualizacion disponible';
       elements.updateModalMessage.textContent = 'La version ' + data.version + ' esta disponible. ¿Deseas descargarla?';
       elements.updateProgressContainer.classList.add('hidden');
@@ -749,9 +690,22 @@ function handleUpdateStatus(data) {
       break;
 
     case 'not-available':
+      if (!manualUpdateCheckRequested) {
+        break;
+      }
+      manualUpdateCheckRequested = false;
+      elements.updateModalTitle.textContent = 'Todo esta actualizado';
+      elements.updateModalMessage.textContent = 'Ya tienes la ultima version de MensajeriaFur.';
+      elements.updateProgressContainer.classList.add('hidden');
+      elements.btnUpdateDownload.classList.add('hidden');
+      elements.btnUpdateInstall.classList.add('hidden');
+      elements.btnUpdateLater.classList.remove('hidden');
+      elements.btnUpdateLater.textContent = 'Cerrar';
+      showUpdateModal();
       break;
 
     case 'error':
+      manualUpdateCheckRequested = false;
       elements.updateModalTitle.textContent = 'Error de actualizacion';
       elements.updateModalMessage.textContent = data.message || 'No se pudo buscar actualizaciones.';
       elements.updateProgressContainer.classList.add('hidden');
@@ -759,6 +713,7 @@ function handleUpdateStatus(data) {
       elements.btnUpdateInstall.classList.add('hidden');
       elements.btnUpdateLater.classList.remove('hidden');
       elements.btnUpdateLater.textContent = 'Cerrar';
+      showUpdateModal();
       break;
   }
 }
@@ -766,19 +721,17 @@ function handleUpdateStatus(data) {
 function openSettings() {
   hideInstancePopup();
   elements.settingsPanel.classList.add('visible');
-  elements.settingsOverlay.classList.add('visible');
-  elements.settingsOverlay.classList.remove('hidden');
+  elements.settingsPanel.classList.remove('hidden');
   renderSettingsPanel();
   syncNativeViewVisibility();
 }
 
 function closeSettings() {
   elements.settingsPanel.classList.remove('visible');
-  elements.settingsOverlay.classList.remove('visible');
   setTimeout(() => {
-    elements.settingsOverlay.classList.add('hidden');
+    elements.settingsPanel.classList.add('hidden');
     syncNativeViewVisibility();
-  }, 300);
+  }, 200);
 }
 
 function showServiceSelector(defaultType = null) {

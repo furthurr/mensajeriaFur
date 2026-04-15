@@ -100,23 +100,23 @@
     </button>
   </div>
 
-  <!-- Settings Panel (slide-up from bottom) -->
-  <div id="settings-overlay" class="overlay hidden"></div>
-  <div id="settings-panel" class="settings-panel hidden">
-    <div class="settings-drag-handle"></div>
-    <div class="settings-header">
-      <h2>Ajustes</h2>
-      <button id="btn-close-settings" class="btn-close">&times;</button>
-    </div>
-    <div class="settings-content" id="settings-list"></div>
-    <div class="settings-footer settings-footer-actions">
-      <button id="btn-add-service" class="btn-add-service">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <line x1="12" y1="5" x2="12" y2="19"></line>
-          <line x1="5" y1="12" x2="19" y2="12"></line>
-        </svg>
-        Agregar servicio
-      </button>
+  <!-- Settings Modal -->
+  <div id="settings-panel" class="modal hidden">
+    <div class="modal-content settings-modal-content">
+      <div class="modal-header settings-header">
+        <h3>Ajustes</h3>
+        <button id="btn-close-settings" class="btn-close-modal">&times;</button>
+      </div>
+      <div class="settings-content" id="settings-list"></div>
+      <div class="modal-footer settings-footer settings-footer-actions">
+        <button id="btn-add-service" class="btn-add-service">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          Agregar servicio
+        </button>
+      </div>
     </div>
   </div>
 
@@ -180,7 +180,7 @@
           <img src="../icono.png" alt="MensajeriaFur" class="about-app-icon">
           <div class="about-app-text">
             <h4 id="about-app-name">MensajeriaFur</h4>
-            <p id="about-app-version">Versión 1.0.4</p>
+            <p id="about-app-version">Versión 1.0.5</p>
           </div>
         </div>
 

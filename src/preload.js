@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('api', {
   deleteInstance: (id) => ipcRenderer.invoke('delete-instance', id),
   switchInstance: (id) => ipcRenderer.send('switch-instance', id),
   reloadInstance: (id) => ipcRenderer.send('reload-instance', id),
+  showInstanceContextMenu: (id) => ipcRenderer.send('show-instance-context-menu', id),
   setActiveViewVisible: (visible) => ipcRenderer.send('set-active-view-visible', visible),
   reorderSidebar: (order) => ipcRenderer.send('reorder-sidebar', order),
   reorderSettings: (order) => ipcRenderer.send('reorder-settings', order),
@@ -24,6 +25,9 @@ contextBridge.exposeInMainWorld('api', {
   },
   onActiveInstanceChanged: (callback) => {
     ipcRenderer.on('active-instance-changed', (event, instanceId) => callback(instanceId));
+  },
+  onInstanceContextAction: (callback) => {
+    ipcRenderer.on('instance-context-action', (event, data) => callback(data));
   },
   checkForUpdates: () => ipcRenderer.send('check-for-updates'),
   downloadUpdate: () => ipcRenderer.send('download-update'),
