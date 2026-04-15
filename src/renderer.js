@@ -30,7 +30,7 @@ let selectedServiceType = null;
 let nativeViewVisible = true;
 let appInfo = {
   name: 'MensajeriaFur',
-  version: '1.0.2'
+  version: '1.0.3'
 };
 let preferences = {
   theme: 'system',
