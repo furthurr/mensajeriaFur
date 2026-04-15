@@ -1,6 +1,6 @@
 {
   "name": "mensajeriafur",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "MensajeriaFur - Todas tus apps de mensajeria en un solo lugar",
   "main": "src/main.js",
   "scripts": {
@@ -24,6 +24,11 @@
       "identity": "Developer ID Application",
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
+      "extendInfo": {
+        "NSCameraUsageDescription": "MensajeriaFur necesita acceso a la camara para videollamadas en los servicios compatibles.",
+        "NSMicrophoneUsageDescription": "MensajeriaFur necesita acceso al microfono para llamadas y videollamadas en los servicios compatibles.",
+        "NSScreenCaptureDescription": "MensajeriaFur necesita acceso para compartir pantalla en los servicios compatibles."
+      },
       "entitlements": "build/entitlements.mac.plist",
       "entitlementsInherit": "build/entitlements.mac.plist",
       "target": [

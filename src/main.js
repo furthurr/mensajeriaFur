@@ -1,4 +1,4 @@
-const { app, BrowserWindow, WebContentsView, ipcMain, session, Menu, shell, desktopCapturer, systemPreferences } = require('electron');
+const { app, BrowserWindow, WebContentsView, ipcMain, session, Menu, shell, desktopCapturer } = require('electron');
 const path = require('path');
 const crypto = require('crypto');
 const Store = require('electron-store');
@@ -623,11 +623,6 @@ app.whenReady().then(() => {
   app.setName(APP_NAME);
   if (process.platform === 'darwin' && app.dock) {
     app.dock.setIcon(APP_ICON_PATH);
-  }
-
-  if (process.platform === 'darwin') {
-    systemPreferences.askForMediaAccess('camera').catch(() => {});
-    systemPreferences.askForMediaAccess('microphone').catch(() => {});
   }
 
   console.log('App ready, initializing store...');
