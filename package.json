@@ -7,9 +7,14 @@
     "start": "electron .",
     "build": "electron-builder --mac",
     "build:dmg": "electron-builder --mac dmg",
-    "build:zip": "electron-builder --mac zip"
+    "build:zip": "electron-builder --mac zip",
+    "build:linux": "electron-builder --linux",
+    "build:deb": "electron-builder --linux deb"
   },
-  "author": "PedroGomez",
+  "author": {
+    "name": "PedroGomez",
+    "email": "pedrogvas@gmail.com"
+  },
   "license": "Apache-2.0",
   "devDependencies": {
     "electron": "^32.0.0",
@@ -35,6 +40,18 @@
         "dmg",
         "zip"
       ]
+    },
+    "linux": {
+      "category": "Network",
+      "icon": "icono.png",
+      "target": [
+        "deb"
+      ],
+      "desktop": {
+        "Name": "MensajeriaFur",
+        "Comment": "Todas tus apps de mensajeria en un solo lugar",
+        "StartupWMClass": "MensajeriaFur"
+      }
     },
     "afterSign": "scripts/notarize.js",
     "publish": [
