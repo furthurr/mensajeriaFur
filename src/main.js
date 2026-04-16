@@ -336,6 +336,31 @@ function createWindow() {
   });
 }
 
+function isTeamsAuthPopupUrl(url) {
+  if (!url || url === 'about:blank') {
+    return true;
+  }
+
+  try {
+    const { hostname, protocol } = new URL(url);
+    const normalizedHost = hostname.toLowerCase();
+
+    if (protocol !== 'https:') {
+      return false;
+    }
+
+    return normalizedHost === 'login.microsoftonline.com' ||
+      normalizedHost.endsWith('.login.microsoftonline.com') ||
+      normalizedHost === 'login.live.com' ||
+      normalizedHost.endsWith('.live.com') ||
+      normalizedHost === 'account.microsoft.com' ||
+      normalizedHost.endsWith('.microsoft.com') ||
+      normalizedHost === 'teams.microsoft.com';
+  } catch {
+    return false;
+  }
+}
+
 function getOrCreateView(instance) {
   if (instanceViews[instance.id]) {
     return instanceViews[instance.id];
@@ -393,6 +418,24 @@ function getOrCreateView(instance) {
   view.webContents.setAudioMuted(!preferences.soundsEnabled);
 
   view.webContents.setWindowOpenHandler(({ url }) => {
+    if (instance.serviceType === 'teams' && isTeamsAuthPopupUrl(url)) {
+      return {
+        action: 'allow',
+        overrideBrowserWindowOptions: {
+          width: 520,
+          height: 720,
+          parent: mainWindow,
+          autoHideMenuBar: true,
+          webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true,
+            session: ses,
+            spellcheck: true
+          }
+        }
+      };
+    }
+
     shell.openExternal(url);
     return { action: 'deny' };
   });
