@@ -33,22 +33,33 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build macOS app (signed + notarized)
+      - name: Build macOS apps (signed + notarized)
         env:
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: npm run build -- --publish never
+        run: npx electron-builder --mac dmg zip --x64 --arm64 --publish never '-c.artifactName=MensajeriaFur-macos-${arch}.${ext}'
+
+      - name: Create user-friendly macOS aliases
+        run: |
+          cp dist/MensajeriaFur-macos-arm64.dmg dist/MensajeriaFur-macos-apple-silicon.dmg
+          cp dist/MensajeriaFur-macos-arm64.zip dist/MensajeriaFur-macos-apple-silicon.zip
+          cp dist/MensajeriaFur-macos-x64.dmg dist/MensajeriaFur-macos-intel.dmg
+          cp dist/MensajeriaFur-macos-x64.zip dist/MensajeriaFur-macos-intel.zip
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: mensajeriafur-macos
           path: |
-            dist/*.dmg
-            dist/*.zip
+            dist/MensajeriaFur-macos-apple-silicon.dmg
+            dist/MensajeriaFur-macos-apple-silicon.zip
+            dist/MensajeriaFur-macos-intel.dmg
+            dist/MensajeriaFur-macos-intel.zip
+            dist/MensajeriaFur-macos-arm64.zip
+            dist/MensajeriaFur-macos-x64.zip
             dist/latest-mac.yml
             dist/*.blockmap
           if-no-files-found: error
@@ -58,13 +69,25 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            dist/*.dmg
-            dist/*.zip
+            dist/MensajeriaFur-macos-apple-silicon.dmg
+            dist/MensajeriaFur-macos-apple-silicon.zip
+            dist/MensajeriaFur-macos-intel.dmg
+            dist/MensajeriaFur-macos-intel.zip
+            dist/MensajeriaFur-macos-arm64.zip
+            dist/MensajeriaFur-macos-x64.zip
             dist/latest-mac.yml
             dist/*.blockmap
 
   build-linux:
     runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - builder_arch: x64
+            artifact_name: amd64
+          - builder_arch: arm64
+            artifact_name: arm64
 
     steps:
       - name: Checkout repository
@@ -80,14 +103,14 @@ jobs:
         run: npm ci
 
       - name: Build Linux .deb
-        run: npm run build:deb -- --publish never
+        run: npx electron-builder --linux deb --${{ matrix.builder_arch }} --publish never '-c.artifactName=MensajeriaFur-linux-${{ matrix.artifact_name }}.${ext}'
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: mensajeriafur-linux
+          name: mensajeriafur-linux-${{ matrix.artifact_name }}
           path: |
-            dist/*.deb
+            dist/MensajeriaFur-linux-${{ matrix.artifact_name }}.deb
           if-no-files-found: error
 
       - name: Publish GitHub release assets
@@ -95,4 +118,40 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            dist/*.deb
+            dist/MensajeriaFur-linux-${{ matrix.artifact_name }}.deb
+
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Windows setup and portable
+        run: npm run build:win:x64 -- --publish never
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mensajeriafur-windows
+          path: |
+            dist/MensajeriaFur-windows-setup.exe
+            dist/MensajeriaFur-windows-portable.exe
+          if-no-files-found: error
+
+      - name: Publish GitHub release assets
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/MensajeriaFur-windows-setup.exe
+            dist/MensajeriaFur-windows-portable.exe

@@ -42,7 +42,7 @@ let nativeViewVisible = true;
 let badgeState = {};
 let appInfo = {
   name: 'MensajeriaFur',
-  version: '1.0.8'
+  version: '1.0.9'
 };
 let preferences = {
   theme: 'system',

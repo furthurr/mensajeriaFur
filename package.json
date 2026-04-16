@@ -1,15 +1,20 @@
 {
   "name": "mensajeriafur",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "MensajeriaFur - Todas tus apps de mensajeria en un solo lugar",
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
     "build": "electron-builder --mac",
+    "build:mac": "electron-builder --mac",
+    "build:mac:all": "electron-builder --mac dmg zip --x64 --arm64",
     "build:dmg": "electron-builder --mac dmg",
     "build:zip": "electron-builder --mac zip",
     "build:linux": "electron-builder --linux",
-    "build:deb": "electron-builder --linux deb"
+    "build:linux:all": "electron-builder --linux deb --x64 --arm64",
+    "build:deb": "electron-builder --linux deb",
+    "build:win": "electron-builder --win",
+    "build:win:x64": "electron-builder --win nsis portable --x64"
   },
   "author": {
     "name": "PedroGomez",
@@ -53,6 +58,19 @@
         "StartupWMClass": "MensajeriaFur"
       }
     },
+    "win": {
+      "icon": "icono.ico",
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "artifactName": "MensajeriaFur-windows-setup.${ext}"
+    },
+    "portable": {
+      "artifactName": "MensajeriaFur-windows-portable.${ext}"
+    },
     "afterSign": "scripts/notarize.js",
     "publish": [
       {
@@ -61,13 +79,13 @@
         "repo": "mensajeriaFur"
       }
     ],
-    "artifactName": "${productName}-${arch}.${ext}",
     "directories": {
       "output": "dist"
     },
     "files": [
       "src/**/*",
       "icono.png",
+      "icono.ico",
       "mensajeriaFur_fondo.png",
       "pedro.png"
     ]
