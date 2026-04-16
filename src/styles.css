@@ -1289,6 +1289,8 @@ body[data-theme='light'] .settings-link-btn-primary:hover {
   width: min(520px, calc(100vw - 32px));
   padding: 0;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .about-app-cover {
@@ -1306,6 +1308,7 @@ body[data-theme='light'] .settings-link-btn-primary:hover {
 .about-app-body {
   padding: 0 24px 24px;
   margin-bottom: 0;
+  overflow-y: auto;
 }
 
 .about-app-main {
@@ -1372,11 +1375,79 @@ body[data-theme='light'] .settings-link-btn-primary:hover {
   color: var(--text-primary);
 }
 
-.about-github-link {
+.about-contact-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.about-contact-title {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.about-contact-links {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.about-contact-link {
   width: 100%;
+  min-height: 64px;
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-primary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
   justify-content: center;
-  font-size: 13px;
-  word-break: break-all;
+  transition: transform var(--transition), background var(--transition), border-color var(--transition), color var(--transition);
+}
+
+.about-contact-link:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.about-contact-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.about-contact-link svg {
+  width: 22px;
+  height: 22px;
+}
+
+.about-app-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.about-app-body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+}
+
+.about-app-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+body[data-theme='light'] .about-contact-link {
+  background: rgba(15, 23, 42, 0.04);
+  border-color: rgba(15, 23, 42, 0.08);
+}
+
+body[data-theme='light'] .about-contact-link:hover {
+  background: rgba(15, 23, 42, 0.08);
+  border-color: rgba(15, 23, 42, 0.14);
+}
+
+body[data-theme='light'] .about-app-body::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.18);
 }
 
 @media (max-width: 640px) {
@@ -1387,6 +1458,15 @@ body[data-theme='light'] .settings-link-btn-primary:hover {
   .about-app-main,
   .about-author-card {
     align-items: flex-start;
+  }
+
+  .about-contact-links {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .about-contact-link {
+    min-height: 58px;
   }
 
   .setting-row {

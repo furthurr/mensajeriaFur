@@ -42,7 +42,7 @@ let nativeViewVisible = true;
 let badgeState = {};
 let appInfo = {
   name: 'MensajeriaFur',
-  version: '1.0.6'
+  version: '1.0.7'
 };
 let preferences = {
   theme: 'system',
@@ -55,6 +55,7 @@ let preferences = {
 };
 let themeMediaQuery = null;
 let manualUpdateCheckRequested = false;
+let installUpdateAfterDownload = false;
 
 const elements = {};
 
@@ -88,7 +89,6 @@ function cacheElements() {
   elements.updateProgressText = document.getElementById('update-progress-text');
   elements.btnUpdateLater = document.getElementById('btn-update-later');
   elements.btnUpdateDownload = document.getElementById('btn-update-download');
-  elements.btnUpdateInstall = document.getElementById('btn-update-install');
 }
 
 async function init() {
@@ -634,8 +634,16 @@ function setupEventListeners() {
   document.getElementById('btn-cancel-delete').addEventListener('click', closeConfirmDelete);
   document.getElementById('btn-confirm-delete').addEventListener('click', confirmDeleteInstance);
   document.getElementById('btn-close-about-app').addEventListener('click', closeAboutApp);
-  document.getElementById('about-github-link').addEventListener('click', () => {
-    window.api.openExternal('https://github.com/furthurr');
+  document.getElementById('about-contact-links').addEventListener('click', (event) => {
+    const button = event.target.closest('.about-contact-link');
+    if (!button) {
+      return;
+    }
+
+    const url = button.getAttribute('data-url');
+    if (url) {
+      window.api.openExternal(url);
+    }
   });
   elements.aboutAppModal.addEventListener('click', (e) => {
     if (e.target === elements.aboutAppModal) {
@@ -646,10 +654,8 @@ function setupEventListeners() {
   document.getElementById('btn-close-update-modal').addEventListener('click', closeUpdateModal);
   document.getElementById('btn-update-later').addEventListener('click', closeUpdateModal);
   document.getElementById('btn-update-download').addEventListener('click', () => {
+    installUpdateAfterDownload = true;
     window.api.downloadUpdate();
-  });
-  document.getElementById('btn-update-install').addEventListener('click', () => {
-    window.api.installUpdate();
   });
 
   document.addEventListener('click', (e) => {
@@ -724,7 +730,6 @@ function handleUpdateStatus(data) {
       elements.updateModalMessage.textContent = 'Comprobando si hay una nueva version disponible...';
       elements.updateProgressContainer.classList.add('hidden');
       elements.btnUpdateDownload.classList.add('hidden');
-      elements.btnUpdateInstall.classList.add('hidden');
       elements.btnUpdateLater.classList.remove('hidden');
       elements.btnUpdateLater.textContent = 'Cerrar';
       showUpdateModal();
@@ -732,35 +737,40 @@ function handleUpdateStatus(data) {
 
     case 'available':
       manualUpdateCheckRequested = false;
+      installUpdateAfterDownload = false;
       elements.updateModalTitle.textContent = 'Actualizacion disponible';
-      elements.updateModalMessage.textContent = 'La version ' + data.version + ' esta disponible. ¿Deseas descargarla?';
+      elements.updateModalMessage.textContent = 'La version ' + data.version + ' esta disponible. ¿Deseas descargarla e instalarla ahora?';
       elements.updateProgressContainer.classList.add('hidden');
       elements.btnUpdateDownload.classList.remove('hidden');
-      elements.btnUpdateInstall.classList.add('hidden');
       elements.btnUpdateLater.classList.remove('hidden');
-      elements.btnUpdateLater.textContent = 'Mas tarde';
+      elements.btnUpdateLater.textContent = 'Descargar mas tarde';
+      elements.btnUpdateDownload.textContent = 'Descargar y actualizar';
       showUpdateModal();
       break;
 
     case 'downloading':
       elements.updateModalTitle.textContent = 'Descargando actualizacion';
-      elements.updateModalMessage.textContent = 'Descargando...';
+      elements.updateModalMessage.textContent = 'Descargando para reiniciar y aplicar la actualizacion...';
       elements.updateProgressContainer.classList.remove('hidden');
       elements.updateProgressFill.style.width = data.percent + '%';
       elements.updateProgressText.textContent = data.percent + '%';
       elements.btnUpdateDownload.classList.add('hidden');
-      elements.btnUpdateInstall.classList.add('hidden');
       elements.btnUpdateLater.classList.add('hidden');
       break;
 
     case 'downloaded':
+      if (installUpdateAfterDownload) {
+        installUpdateAfterDownload = false;
+        window.api.installUpdate();
+        break;
+      }
+
       elements.updateModalTitle.textContent = 'Actualizacion lista';
       elements.updateModalMessage.textContent = 'La actualizacion se descargo. Reinicia para aplicarla.';
       elements.updateProgressContainer.classList.add('hidden');
       elements.btnUpdateDownload.classList.add('hidden');
-      elements.btnUpdateInstall.classList.remove('hidden');
       elements.btnUpdateLater.classList.remove('hidden');
-      elements.btnUpdateLater.textContent = 'Mas tarde';
+      elements.btnUpdateLater.textContent = 'Cerrar';
       break;
 
     case 'not-available':
@@ -772,7 +782,6 @@ function handleUpdateStatus(data) {
       elements.updateModalMessage.textContent = 'Ya tienes la ultima version de MensajeriaFur.';
       elements.updateProgressContainer.classList.add('hidden');
       elements.btnUpdateDownload.classList.add('hidden');
-      elements.btnUpdateInstall.classList.add('hidden');
       elements.btnUpdateLater.classList.remove('hidden');
       elements.btnUpdateLater.textContent = 'Cerrar';
       showUpdateModal();
@@ -780,11 +789,11 @@ function handleUpdateStatus(data) {
 
     case 'error':
       manualUpdateCheckRequested = false;
+      installUpdateAfterDownload = false;
       elements.updateModalTitle.textContent = 'Error de actualizacion';
       elements.updateModalMessage.textContent = data.message || 'No se pudo buscar actualizaciones.';
       elements.updateProgressContainer.classList.add('hidden');
       elements.btnUpdateDownload.classList.add('hidden');
-      elements.btnUpdateInstall.classList.add('hidden');
       elements.btnUpdateLater.classList.remove('hidden');
       elements.btnUpdateLater.textContent = 'Cerrar';
       showUpdateModal();

@@ -23,8 +23,14 @@ Aplicacion de escritorio para centralizar multiples servicios de mensajeria en u
 - Soporte para multiples instancias por servicio.
 - Barra lateral con orden manual de apps activas.
 - Panel de ajustes con tema `claro`, `oscuro` y `sistema`.
-- Modal de informacion de la app con datos del autor y enlace a GitHub.
+- Modal de informacion de la app con datos del autor, redes y correo de contacto.
+- Flujo de actualizacion en app con accion directa `Descargar y actualizar`.
 - Build para macOS en formato `.app`, `.dmg` y `.zip`.
+
+## Documentacion tecnica
+
+- Documentacion detallada del proyecto: `specs/README.md`
+- La carpeta `specs/` debe actualizarse cuando cambie comportamiento relevante de la app.
 
 ## Servicios compatibles
 
@@ -90,6 +96,7 @@ Nota: en GitHub Actions el build puede salir sin firma ni notarizacion si no se 
 Pedro G. V. `@furthurr`
 
 - GitHub: https://github.com/furthurr
+- Email: pedrogvas@gmail.com
 
 ## Licencia
 
