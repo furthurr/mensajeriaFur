@@ -6,13 +6,15 @@ const { autoUpdater } = require('electron-updater');
 
 const APP_NAME = 'MensajeriaFur';
 const APP_ICON_PATH = path.join(__dirname, '..', 'icono.png');
+const SUPPORTED_SPELLCHECK_LANGUAGES = ['es-MX', 'es-ES', 'en-US', 'en-GB', 'pt-BR', 'fr-FR', 'de-DE', 'it-IT'];
 const DEFAULT_PREFERENCES = {
   theme: 'system',
   openAtLogin: false,
   restoreLastActiveInstance: true,
   confirmBeforeDelete: true,
   notificationsEnabled: true,
-  soundsEnabled: true
+  soundsEnabled: true,
+  spellcheckLanguage: 'es-MX'
 };
 
 const SERVICE_TYPES = {
@@ -48,6 +50,7 @@ const SIDEBAR_WIDTH = 70;
 const TITLEBAR_HEIGHT = 0;
 let activeViewVisible = true;
 let activeViewAttached = false;
+let instanceBadges = {};
 
 let store;
 let instances = [];
@@ -65,6 +68,9 @@ function sanitizePreferences(data = {}) {
   next.confirmBeforeDelete = Boolean(next.confirmBeforeDelete);
   next.notificationsEnabled = Boolean(next.notificationsEnabled);
   next.soundsEnabled = Boolean(next.soundsEnabled);
+  if (!SUPPORTED_SPELLCHECK_LANGUAGES.includes(next.spellcheckLanguage)) {
+    next.spellcheckLanguage = DEFAULT_PREFERENCES.spellcheckLanguage;
+  }
   return next;
 }
 
@@ -82,11 +88,162 @@ function applySoundPreference() {
   });
 }
 
+function configureSpellChecker(ses) {
+  if (!ses || process.platform === 'darwin') {
+    return;
+  }
+
+  if (!ses.availableSpellCheckerLanguages.includes(preferences.spellcheckLanguage)) {
+    return;
+  }
+
+  ses.setSpellCheckerLanguages([preferences.spellcheckLanguage]);
+}
+
+function applySpellcheckPreference() {
+  Object.values(instanceViews).forEach(view => {
+    if (view?.webContents) {
+      configureSpellChecker(view.webContents.session);
+    }
+  });
+}
+
+function getEmptyBadgeState() {
+  return { hasUnread: false, count: null };
+}
+
+function parseUnreadFromTitle(title = '') {
+  const leadingCountMatch = title.match(/^\((\d+)\)/);
+  if (leadingCountMatch) {
+    return { hasUnread: true, count: Number(leadingCountMatch[1]) };
+  }
+
+  const trailingCountMatch = title.match(/\b(\d+)\b(?=.*(?:mensaje|mensajes|chat|chats|notification|notifications))/i);
+  if (trailingCountMatch) {
+    return { hasUnread: true, count: Number(trailingCountMatch[1]) };
+  }
+
+  return getEmptyBadgeState();
+}
+
+function sendBadgeState(instanceId) {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    return;
+  }
+
+  mainWindow.webContents.send('badge-state-changed', {
+    instanceId,
+    ...(instanceBadges[instanceId] || getEmptyBadgeState())
+  });
+}
+
+function updateBadgeState(instanceId, badge) {
+  const nextBadge = badge.hasUnread ? badge : getEmptyBadgeState();
+  const currentBadge = instanceBadges[instanceId] || getEmptyBadgeState();
+
+  if (currentBadge.hasUnread === nextBadge.hasUnread && currentBadge.count === nextBadge.count) {
+    return;
+  }
+
+  instanceBadges[instanceId] = nextBadge;
+  sendBadgeState(instanceId);
+}
+
+function clearBadgeState(instanceId) {
+  updateBadgeState(instanceId, getEmptyBadgeState());
+}
+
+function buildEditableContextMenu(webContents, params) {
+  const template = [];
+
+  if (params.misspelledWord) {
+    if (params.dictionarySuggestions.length) {
+      params.dictionarySuggestions.forEach((suggestion) => {
+        template.push({
+          label: suggestion,
+          click: () => webContents.replaceMisspelling(suggestion)
+        });
+      });
+    } else {
+      template.push({
+        label: 'Sin sugerencias',
+        enabled: false
+      });
+    }
+
+    template.push({ type: 'separator' });
+    template.push({
+      label: 'Agregar al diccionario',
+      click: () => {
+        webContents.session.addWordToSpellCheckerDictionary(params.misspelledWord);
+      }
+    });
+  }
+
+  const editItems = [
+    {
+      label: 'Cortar',
+      enabled: params.editFlags.canCut,
+      click: () => webContents.cut()
+    },
+    {
+      label: 'Copiar',
+      enabled: params.editFlags.canCopy,
+      click: () => webContents.copy()
+    },
+    {
+      label: 'Pegar',
+      enabled: params.editFlags.canPaste,
+      click: () => webContents.paste()
+    },
+    {
+      label: 'Seleccionar todo',
+      enabled: params.editFlags.canSelectAll,
+      click: () => webContents.selectAll()
+    }
+  ];
+
+  if (template.length) {
+    template.push({ type: 'separator' });
+  }
+
+  template.push(...editItems);
+  return template;
+}
+
+function attachEditableContextMenu(view) {
+  view.webContents.on('context-menu', (event, params) => {
+    if (!params.isEditable) {
+      return;
+    }
+
+    const template = buildEditableContextMenu(view.webContents, params);
+    if (!template.length) {
+      return;
+    }
+
+    Menu.buildFromTemplate(template).popup({ window: mainWindow });
+  });
+}
+
+function attachBadgeTracking(view, instance) {
+  view.webContents.on('page-title-updated', (event, title) => {
+    const badge = parseUnreadFromTitle(title);
+    if (!badge.hasUnread || instance.id === activeInstanceId) {
+      clearBadgeState(instance.id);
+      return;
+    }
+
+    updateBadgeState(instance.id, badge);
+  });
+}
+
 function updatePreferences(data) {
   preferences = sanitizePreferences({ ...preferences, ...data });
   store.set('preferences', preferences);
   applyLoginItemSettings();
   applySoundPreference();
+  applySpellcheckPreference();
   return preferences;
 }
 
@@ -217,6 +374,8 @@ function getOrCreateView(instance) {
     return allowed.includes(permission);
   });
 
+  configureSpellChecker(ses);
+
   const serviceType = SERVICE_TYPES[instance.serviceType];
   const view = new WebContentsView({
     webPreferences: {
@@ -237,6 +396,9 @@ function getOrCreateView(instance) {
     shell.openExternal(url);
     return { action: 'deny' };
   });
+
+  attachEditableContextMenu(view);
+  attachBadgeTracking(view, instance);
 
   instanceViews[instance.id] = view;
   return view;
@@ -269,6 +431,7 @@ function switchToInstance(instanceId) {
 
   activeInstanceId = instanceId;
   store.set('activeInstanceId', activeInstanceId);
+  clearBadgeState(instanceId);
   setActiveViewVisible(activeViewVisible);
 
   if (mainWindow && !mainWindow.isDestroyed()) {
@@ -453,6 +616,8 @@ function deleteInstance(id) {
     delete instanceViews[id];
   }
 
+  delete instanceBadges[id];
+
   session.fromPartition(`persist:${id}`).clearStorageData();
 
   instances = instances.filter(i => i.id !== id);
@@ -508,6 +673,8 @@ function setupIpcHandlers() {
       color: data.color
     }));
   });
+
+  ipcMain.handle('get-badge-state', () => instanceBadges);
 
   ipcMain.handle('add-instance', (event, serviceType, name) => {
     if (!SERVICE_TYPES[serviceType]) {

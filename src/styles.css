@@ -228,6 +228,32 @@ body {
   height: 22px;
 }
 
+.service-badge {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  box-shadow: 0 0 0 2px var(--bg-surface);
+}
+
+.service-badge-dot {
+  min-width: 10px;
+  width: 10px;
+  height: 10px;
+  padding: 0;
+}
+
 .service-btn::after {
   content: attr(data-tooltip);
   position: absolute;
@@ -847,6 +873,34 @@ body {
 .theme-option.active {
   background: var(--accent);
   color: white;
+}
+
+.settings-select-wrap {
+  display: block;
+  width: 100%;
+}
+
+.settings-select {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 0 14px;
+  cursor: pointer;
+  outline: none;
+}
+
+.settings-select:focus {
+  border-color: rgba(233, 69, 96, 0.5);
+  box-shadow: 0 0 0 3px rgba(233, 69, 96, 0.14);
+}
+
+body[data-theme='light'] .settings-select {
+  background: rgba(15, 23, 42, 0.03);
 }
 
 .settings-link-btn {

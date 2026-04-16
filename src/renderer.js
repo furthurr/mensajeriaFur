@@ -19,6 +19,17 @@ const SERVICE_ICONS = {
   googlemessages: `<svg viewBox="0 0 24 24" fill="none"><path d="M6 5h12a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3h-5l-5 4v-4H6a3 3 0 0 1-3-3V8a3 3 0 0 1 3-3Z" fill="currentColor"/><path d="M8 10h8M8 13h5" stroke="white" stroke-width="1.8" stroke-linecap="round"/></svg>`
 };
 
+const SUPPORTED_SPELLCHECK_LANGUAGES = [
+  { value: 'es-MX', label: 'Español (México)' },
+  { value: 'es-ES', label: 'Español (España)' },
+  { value: 'en-US', label: 'English (US)' },
+  { value: 'en-GB', label: 'English (UK)' },
+  { value: 'pt-BR', label: 'Português (Brasil)' },
+  { value: 'fr-FR', label: 'Français' },
+  { value: 'de-DE', label: 'Deutsch' },
+  { value: 'it-IT', label: 'Italiano' }
+];
+
 let instances = [];
 let sidebarOrder = [];
 let settingsOrder = [];
@@ -28,9 +39,10 @@ let draggedSidebarId = null;
 let draggedSettingsId = null;
 let selectedServiceType = null;
 let nativeViewVisible = true;
+let badgeState = {};
 let appInfo = {
   name: 'MensajeriaFur',
-  version: '1.0.5'
+  version: '1.0.6'
 };
 let preferences = {
   theme: 'system',
@@ -38,7 +50,8 @@ let preferences = {
   restoreLastActiveInstance: true,
   confirmBeforeDelete: true,
   notificationsEnabled: true,
-  soundsEnabled: true
+  soundsEnabled: true,
+  spellcheckLanguage: 'es-MX'
 };
 let themeMediaQuery = null;
 let manualUpdateCheckRequested = false;
@@ -90,6 +103,7 @@ async function init() {
     window.api.getAppInfo(),
     window.api.getPreferences()
   ]);
+  badgeState = await window.api.getBadgeState();
 
   setupThemeListener();
   applyTheme();
@@ -122,6 +136,14 @@ async function init() {
       requestDeleteInstance(instanceId);
     }
   });
+
+  window.api.onBadgeStateChanged((data) => {
+    badgeState[data.instanceId] = {
+      hasUnread: data.hasUnread,
+      count: data.count
+    };
+    renderSidebar();
+  });
 }
 
 function renderSidebar() {
@@ -140,7 +162,7 @@ function renderSidebar() {
     btn.setAttribute('data-instance-id', instance.id);
     btn.setAttribute('draggable', 'true');
     btn.setAttribute('data-tooltip', `${serviceType.name} - ${instance.name}`);
-    btn.innerHTML = `<span class="service-icon">${SERVICE_ICONS[instance.serviceType]}</span>`;
+    btn.innerHTML = `<span class="service-icon">${SERVICE_ICONS[instance.serviceType]}</span>${renderSidebarBadge(instance.id)}`;
     btn.style.setProperty('--service-color', serviceType.color);
 
     if (instance.id === activeInstanceId) {
@@ -157,6 +179,20 @@ function renderSidebar() {
 
   attachSidebarEvents();
   setupSidebarDragAndDrop();
+}
+
+function renderSidebarBadge(instanceId) {
+  const badge = badgeState[instanceId];
+  if (!badge?.hasUnread) {
+    return '';
+  }
+
+  if (badge.count && badge.count > 0) {
+    const label = badge.count > 99 ? '99+' : String(badge.count);
+    return `<span class="service-badge service-badge-count">${label}</span>`;
+  }
+
+  return '<span class="service-badge service-badge-dot" aria-hidden="true"></span>';
 }
 
 function renderWelcomeServiceChips() {
@@ -379,6 +415,24 @@ function renderSettingsPanel() {
 
     <div class="settings-block">
       <div class="settings-block-header">
+        <h3>Idioma</h3>
+        <p>Selecciona el idioma preferido para la correccion ortografica.</p>
+      </div>
+      <div class="setting-row setting-row-stacked">
+        <div class="setting-copy">
+          <strong>Idioma de correccion</strong>
+          <span>En macOS, la sugerencia final tambien puede depender de la configuracion del sistema.</span>
+        </div>
+        <label class="settings-select-wrap" for="spellcheck-language-select">
+          <select class="settings-select" id="spellcheck-language-select">
+            ${renderSpellcheckLanguageOptions()}
+          </select>
+        </label>
+      </div>
+    </div>
+
+    <div class="settings-block">
+      <div class="settings-block-header">
         <h3>Actualizaciones</h3>
         <p>Busca nuevas versiones de MensajeriaFur y descargalas cuando quieras.</p>
       </div>
@@ -397,6 +451,13 @@ function renderSettingsPanel() {
 
   elements.settingsList.appendChild(preferencesSection);
   setupSettingsEventListeners();
+}
+
+function renderSpellcheckLanguageOptions() {
+  return SUPPORTED_SPELLCHECK_LANGUAGES.map((language) => {
+    const selected = language.value === preferences.spellcheckLanguage ? ' selected' : '';
+    return `<option value="${language.value}"${selected}>${language.label}</option>`;
+  }).join('');
 }
 
 function renderPreferenceToggle(key, title, description) {
@@ -484,6 +545,19 @@ function setupSettingsEventListeners() {
       renderSettingsPanel();
     });
   });
+
+  const spellcheckLanguageSelect = document.getElementById('spellcheck-language-select');
+  if (spellcheckLanguageSelect) {
+    spellcheckLanguageSelect.addEventListener('change', async (event) => {
+      const nextLanguage = event.target.value;
+      if (nextLanguage === preferences.spellcheckLanguage) {
+        return;
+      }
+
+      preferences = await window.api.updatePreferences({ spellcheckLanguage: nextLanguage });
+      renderSettingsPanel();
+    });
+  }
 
   const aboutBtn = document.getElementById('btn-open-about-from-settings');
   if (aboutBtn) {

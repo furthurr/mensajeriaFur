@@ -16,6 +16,7 @@ contextBridge.exposeInMainWorld('api', {
   reorderSettings: (order) => ipcRenderer.send('reorder-settings', order),
   getActiveInstance: () => ipcRenderer.invoke('get-active-instance'),
   getAppInfo: () => ipcRenderer.invoke('get-app-info'),
+  getBadgeState: () => ipcRenderer.invoke('get-badge-state'),
   getPreferences: () => ipcRenderer.invoke('get-preferences'),
   updatePreferences: (data) => ipcRenderer.invoke('update-preferences', data),
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
@@ -28,6 +29,9 @@ contextBridge.exposeInMainWorld('api', {
   },
   onInstanceContextAction: (callback) => {
     ipcRenderer.on('instance-context-action', (event, data) => callback(data));
+  },
+  onBadgeStateChanged: (callback) => {
+    ipcRenderer.on('badge-state-changed', (event, data) => callback(data));
   },
   checkForUpdates: () => ipcRenderer.send('check-for-updates'),
   downloadUpdate: () => ipcRenderer.send('download-update'),
