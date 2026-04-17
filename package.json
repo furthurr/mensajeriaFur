@@ -1,6 +1,6 @@
 {
   "name": "mensajeriafur",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "description": "MensajeriaFur - Todas tus apps de mensajeria en un solo lugar",
   "main": "src/main.js",
   "scripts": {
@@ -37,7 +37,8 @@
       "extendInfo": {
         "NSCameraUsageDescription": "MensajeriaFur necesita acceso a la camara para videollamadas en los servicios compatibles.",
         "NSMicrophoneUsageDescription": "MensajeriaFur necesita acceso al microfono para llamadas y videollamadas en los servicios compatibles.",
-        "NSScreenCaptureDescription": "MensajeriaFur necesita acceso para compartir pantalla en los servicios compatibles."
+        "NSScreenCaptureDescription": "MensajeriaFur necesita acceso para compartir pantalla en los servicios compatibles.",
+        "NSAppSleepDisabled": true
       },
       "entitlements": "build/entitlements.mac.plist",
       "entitlementsInherit": "build/entitlements.mac.plist",
@@ -56,17 +57,59 @@
         "Name": "MensajeriaFur",
         "Comment": "Todas tus apps de mensajeria en un solo lugar",
         "StartupWMClass": "MensajeriaFur"
-      }
+      },
+      "extraResources": [
+        {
+          "from": "linux/apparmor-profile",
+          "to": "../apparmor-profile"
+        }
+      ]
+    },
+    "deb": {
+      "afterInstall": "scripts/linux-after-install.sh",
+      "afterRemove": "scripts/linux-after-remove.sh",
+      "depends": [
+        "libgtk-3-0",
+        "libnotify4",
+        "libnss3",
+        "libxss1",
+        "libxtst6",
+        "xdg-utils",
+        "libatspi2.0-0",
+        "libuuid1",
+        "libsecret-1-0",
+        "libgbm1",
+        "libasound2t64",
+        "libdrm2",
+        "libxkbcommon0",
+        "libxrandr2",
+        "libxcomposite1",
+        "libxdamage1",
+        "libxfixes3",
+        "libcups2"
+      ]
     },
     "win": {
       "icon": "icono.ico",
       "target": [
         "nsis",
         "portable"
-      ]
+      ],
+      "requestedExecutionLevel": "asInvoker",
+      "publisherName": "PedroGomez"
     },
     "nsis": {
-      "artifactName": "MensajeriaFur-windows-setup.${ext}"
+      "artifactName": "MensajeriaFur-windows-setup.${ext}",
+      "oneClick": true,
+      "perMachine": false,
+      "allowElevation": true,
+      "packElevateHelper": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "MensajeriaFur",
+      "unicode": true,
+      "deleteAppDataOnUninstall": false,
+      "runAfterFinish": true
     },
     "portable": {
       "artifactName": "MensajeriaFur-windows-portable.${ext}"

@@ -27,7 +27,8 @@ exports.default = async function notarizing(context) {
     appPath,
     appleId,
     appleIdPassword,
-    teamId
+    teamId,
+    tool: 'notarytool'
   });
 
   console.log('Notarization complete.');

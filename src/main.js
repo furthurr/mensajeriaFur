@@ -1,12 +1,56 @@
-const { app, BrowserWindow, WebContentsView, ipcMain, session, Menu, shell, desktopCapturer } = require('electron');
+const { app, BrowserWindow, WebContentsView, ipcMain, session, Menu, shell, desktopCapturer, powerSaveBlocker } = require('electron');
 const path = require('path');
 const crypto = require('crypto');
 const Store = require('electron-store');
 const { autoUpdater } = require('electron-updater');
 
+// --- Linux compatibility fixes (Ubuntu 24.04+) ---
+if (process.platform === 'linux') {
+  // Force X11 via XWayland for stability (Electron 32 has known Wayland bugs)
+  app.commandLine.appendSwitch('ozone-platform-hint', 'x11');
+
+  // Mitigate NVIDIA GPU process SIGTRAP crashes
+  app.commandLine.appendSwitch('disable-gpu-sandbox');
+  app.commandLine.appendSwitch('use-gl', 'angle');
+  app.commandLine.appendSwitch('use-angle', 'vulkan');
+}
+
+// --- Windows compatibility fixes (Windows 10/11) ---
+if (process.platform === 'win32') {
+  // Required for notifications, taskbar grouping, and Start Menu integration
+  app.setAppUserModelId('com.mensajeriafur.app');
+
+  // Prevent software rasterizer fallback issues on older Intel/AMD GPUs
+  app.commandLine.appendSwitch('disable-software-rasterizer');
+
+  // Force D3D11 ANGLE backend for maximum GPU compatibility
+  app.commandLine.appendSwitch('use-angle', 'd3d11');
+}
+
+// --- Cross-platform: handle --disable-gpu relaunch flag ---
+if (process.argv.includes('--disable-gpu')) {
+  app.disableHardwareAcceleration();
+}
+
+// --- macOS compatibility fixes (Sonoma 14 / Sequoia 15) ---
+// App Nap prevention is set up after app.whenReady() via powerSaveBlocker
+
 const APP_NAME = 'MensajeriaFur';
 const APP_ICON_PATH = path.join(__dirname, '..', 'icono.png');
 const SUPPORTED_SPELLCHECK_LANGUAGES = ['es-MX', 'es-ES', 'en-US', 'en-GB', 'pt-BR', 'fr-FR', 'de-DE', 'it-IT'];
+
+// Platform-aware user-agent builder to avoid service blocking on Windows/Linux
+function buildUserAgent(chromeVersion, edgeSuffix = false) {
+  const platformStrings = {
+    darwin: 'Macintosh; Intel Mac OS X 10_15_7',
+    win32: 'Windows NT 10.0; Win64; x64',
+    linux: 'X11; Linux x86_64'
+  };
+  const platform = platformStrings[process.platform] || platformStrings.darwin;
+  let ua = `Mozilla/5.0 (${platform}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion} Safari/537.36`;
+  if (edgeSuffix) ua += ` Edg/${chromeVersion}`;
+  return ua;
+}
 const DEFAULT_PREFERENCES = {
   theme: 'system',
   openAtLogin: false,
@@ -18,9 +62,14 @@ const DEFAULT_PREFERENCES = {
 };
 
 const SERVICE_TYPES = {
-  whatsapp:  { name: 'WhatsApp', url: 'https://web.whatsapp.com', color: '#25D366', userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' },
+  whatsapp:  { name: 'WhatsApp', url: 'https://web.whatsapp.com', color: '#25D366', userAgent: buildUserAgent('120.0.0.0') },
   telegram:  { name: 'Telegram', url: 'https://web.telegram.org/k/', color: '#0088cc', userAgent: null },
-  slack:     { name: 'Slack', url: 'https://app.slack.com/client', color: '#4A154B', userAgent: null },
+  slack:     {
+    name: 'Slack',
+    url: 'https://app.slack.com/client',
+    color: '#4A154B',
+    userAgent: buildUserAgent('135.0.0.0')
+  },
   messenger: { name: 'Messenger', url: 'https://www.messenger.com', color: '#006AFF', userAgent: null },
   discord:   { name: 'Discord', url: 'https://discord.com/app', color: '#5865F2', userAgent: null },
   googlechat: { name: 'Google Chat', url: 'https://chat.google.com', color: '#34A853', userAgent: null },
@@ -28,7 +77,7 @@ const SERVICE_TYPES = {
     name: 'Microsoft Teams',
     url: 'https://teams.microsoft.com/v2/?clientexperience=t2',
     color: '#6264A7',
-    userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36 Edg/135.0.0.0'
+    userAgent: buildUserAgent('135.0.0.0', true)
   },
   signal: { name: 'Signal', url: 'https://signal.org', color: '#3A76F0', userAgent: null },
   skype: { name: 'Skype', url: 'https://web.skype.com', color: '#00AFF0', userAgent: null },
@@ -398,6 +447,10 @@ function getOrCreateView(instance) {
     }
     return allowed.includes(permission);
   });
+
+  // Allow access to specific media devices (camera, microphone, speakers)
+  // Required on Windows for getUserMedia device selection to work
+  ses.setDevicePermissionHandler((_details) => true);
 
   configureSpellChecker(ses);
 
@@ -799,15 +852,20 @@ function setupIpcHandlers() {
   });
 
   ipcMain.handle('get-desktop-sources', async () => {
-    const sources = await desktopCapturer.getSources({
-      types: ['window', 'screen'],
-      thumbnailSize: { width: 150, height: 150 }
-    });
-    return sources.map(source => ({
-      id: source.id,
-      name: source.name,
-      thumbnail: source.thumbnail.toDataURL()
-    }));
+    try {
+      const sources = await desktopCapturer.getSources({
+        types: ['window', 'screen'],
+        thumbnailSize: { width: 150, height: 150 }
+      });
+      return sources.map(source => ({
+        id: source.id,
+        name: source.name,
+        thumbnail: source.thumbnail.toDataURL()
+      }));
+    } catch (err) {
+      console.error('desktopCapturer failed (screen recording permission may be denied):', err.message);
+      return [];
+    }
   });
 
   ipcMain.on('check-for-updates', () => {
@@ -858,10 +916,29 @@ function setupAutoUpdater() {
   });
 }
 
+// --- Proxy/NTLM authentication handler (corporate networks) ---
+// Prevents silent connection failures behind corporate proxies that require auth.
+// Uses system credentials automatically when available (NTLM/Kerberos).
+app.on('login', (event, _webContents, _details, authInfo, callback) => {
+  // Let Electron try system/stored credentials first (covers NTLM/Kerberos SSO)
+  // If no credentials are available, the request will fail gracefully
+  // instead of hanging or crashing
+  if (authInfo.isProxy) {
+    event.preventDefault();
+    callback(); // empty callback = try default/system credentials
+  }
+});
+
 app.whenReady().then(() => {
   app.setName(APP_NAME);
   if (process.platform === 'darwin' && app.dock) {
     app.dock.setIcon(APP_ICON_PATH);
+  }
+
+  // macOS: prevent App Nap from suspending background webviews
+  // Without this, WhatsApp/Telegram/Slack lose WebSocket connections when backgrounded
+  if (process.platform === 'darwin') {
+    powerSaveBlocker.start('prevent-app-suspension');
   }
 
   console.log('App ready, initializing store...');
@@ -894,3 +971,15 @@ app.on('window-all-closed', () => {
     app.quit();
   }
 });
+
+// Linux & Windows: auto-recover from GPU process crash by relaunching with --disable-gpu
+if (process.platform !== 'darwin') {
+  app.on('child-process-gone', (_event, details) => {
+    if (details.type === 'GPU' && (details.reason === 'crashed' || details.reason === 'killed')) {
+      if (!process.argv.includes('--disable-gpu')) {
+        app.relaunch({ args: process.argv.slice(1).concat(['--disable-gpu']) });
+        app.exit(0);
+      }
+    }
+  });
+}

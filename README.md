@@ -4,7 +4,7 @@
 
 ![Release](https://img.shields.io/github/v/release/furthurr/mensajeriaFur?label=release)
 ![License](https://img.shields.io/github/license/furthurr/mensajeriaFur)
-![Platform](https://img.shields.io/badge/platform-macOS-111827)
+![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-111827)
 ![Workflow](https://img.shields.io/github/actions/workflow/status/furthurr/mensajeriaFur/release.yml?label=release%20build)
 
 Aplicacion de escritorio para centralizar multiples servicios de mensajeria en una sola ventana usando Electron.
@@ -25,7 +25,8 @@ Aplicacion de escritorio para centralizar multiples servicios de mensajeria en u
 - Panel de ajustes con tema `claro`, `oscuro` y `sistema`.
 - Modal de informacion de la app con datos del autor, redes y correo de contacto.
 - Flujo de actualizacion en app con accion directa `Descargar y actualizar`.
-- Build para macOS en formato `.app`, `.dmg` y `.zip`.
+- Auto-update en la app para macOS.
+- Releases para macOS, Linux y Windows.
 
 ## Documentacion tecnica
 
@@ -57,7 +58,9 @@ Aplicacion de escritorio para centralizar multiples servicios de mensajeria en u
 
 - Node.js
 - npm
-- macOS para generar el build `.app`
+- macOS para builds locales de macOS
+- Windows para builds locales de Windows
+- Linux o macOS para builds locales `.deb`
 
 ## Desarrollo
 
@@ -74,12 +77,28 @@ npm run build
 
 Los artefactos generados quedan en `dist/`.
 
+Builds disponibles:
+
+```bash
+npm run build:mac:all
+npm run build:linux:all
+npm run build:win:x64
+```
+
+Artefactos de release actuales:
+
+- macOS Apple Silicon: `.dmg` y `.zip`
+- macOS Intel: `.dmg` y `.zip`
+- Linux `amd64`: `.deb`
+- Linux `arm64`: `.deb`
+- Windows `x64`: `setup.exe` y `portable.exe`
+
 ## Releases automáticas
 
 El repositorio incluye un workflow de GitHub Actions que:
 
-- compila la app en macOS
-- genera `.dmg` y `.zip`
+- compila la app en macOS, Linux y Windows
+- genera artefactos por arquitectura y plataforma
 - publica los archivos en una release cuando se crea un tag `v*`
 
 Ejemplo:
@@ -89,7 +108,11 @@ git tag v1.0.1
 git push origin v1.0.1
 ```
 
-Nota: en GitHub Actions el build puede salir sin firma ni notarizacion si no se configuran certificados y credenciales de Apple.
+Notas:
+
+- En GitHub Actions el build de macOS puede salir sin firma ni notarizacion si no se configuran certificados y credenciales de Apple.
+- El build de Windows se publica sin firma si no se configuran credenciales de code signing.
+- El auto-update se mantiene como flujo soportado para macOS.
 
 ## Autor
 
