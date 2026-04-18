@@ -69,7 +69,7 @@ const SERVICE_TYPES = {
     name: 'Slack',
     url: 'https://app.slack.com/client',
     color: '#4A154B',
-    userAgent: buildUserAgent('135.0.0.0')
+    userAgent: buildUserAgent(process.versions.chrome || '135.0.0.0')
   },
   messenger: { name: 'Messenger', url: 'https://www.messenger.com', color: '#006AFF', userAgent: null },
   discord:   { name: 'Discord', url: 'https://discord.com/app', color: '#5865F2', userAgent: null },
@@ -556,67 +556,6 @@ function openTeamsInteractiveAuthWindow(instance, ses, view, silentAuthUrl) {
   authWc.loadURL(interactiveUrl);
 }
 
-function openGoogleAuthWindow(instance, ses, view, googleUrl, defaultUA) {
-  const authWindow = new BrowserWindow({
-    width: 520,
-    height: 720,
-    parent: mainWindow,
-    autoHideMenuBar: true,
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
-      session: ses,
-      spellcheck: true
-    }
-  });
-
-  const authWc = authWindow.webContents;
-  authWc.setUserAgent(defaultUA);
-
-  const serviceType = SERVICE_TYPES[instance.serviceType];
-  const serviceOrigin = new URL(serviceType.url).origin;
-
-  const handleNavigation = (_event, navUrl) => {
-    try {
-      const { hostname } = new URL(navUrl);
-      const isBackToService = navUrl.startsWith(serviceOrigin);
-      const isSlackRedirect = hostname === 'slack.com' || hostname.endsWith('.slack.com');
-
-      if (isBackToService || isSlackRedirect) {
-        if (!authWindow.isDestroyed()) authWindow.close();
-        view.webContents.loadURL(serviceType.url);
-      }
-    } catch {}
-  };
-
-  authWc.on('will-navigate', handleNavigation);
-  authWc.on('did-navigate', handleNavigation);
-
-  authWc.setWindowOpenHandler(({ url }) => {
-    if (isGoogleAuthUrl(url) || url === 'about:blank') {
-      return {
-        action: 'allow',
-        overrideBrowserWindowOptions: {
-          width: 520,
-          height: 720,
-          parent: authWindow,
-          autoHideMenuBar: true,
-          webPreferences: {
-            nodeIntegration: false,
-            contextIsolation: true,
-            session: ses,
-            spellcheck: true
-          }
-        }
-      };
-    }
-    shell.openExternal(url);
-    return { action: 'deny' };
-  });
-
-  authWc.loadURL(googleUrl);
-}
-
 function getOrCreateView(instance) {
   if (instanceViews[instance.id]) {
     return instanceViews[instance.id];
@@ -688,7 +627,7 @@ function getOrCreateView(instance) {
   // This works at the network level, catching HTTP redirects that will-navigate misses.
   if (serviceType.userAgent) {
     ses.webRequest.onBeforeSendHeaders(
-      { urls: ['https://*.google.com/*', 'https://accounts.google.com/*'] },
+      { urls: ['https://accounts.google.com/*'] },
       (details, callback) => {
         details.requestHeaders['User-Agent'] = defaultUserAgent;
         callback({ requestHeaders: details.requestHeaders });
