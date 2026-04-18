@@ -386,6 +386,18 @@ function createWindow() {
   });
 }
 
+function isGoogleAuthUrl(url) {
+  if (!url || url === 'about:blank') return false;
+  try {
+    const { hostname, protocol } = new URL(url);
+    if (protocol !== 'https:') return false;
+    const h = hostname.toLowerCase();
+    return h === 'accounts.google.com' || h.endsWith('.accounts.google.com');
+  } catch {
+    return false;
+  }
+}
+
 function isTeamsAuthPopupUrl(url) {
   if (!url || url === 'about:blank') {
     return true;
@@ -544,6 +556,67 @@ function openTeamsInteractiveAuthWindow(instance, ses, view, silentAuthUrl) {
   authWc.loadURL(interactiveUrl);
 }
 
+function openGoogleAuthWindow(instance, ses, view, googleUrl, defaultUA) {
+  const authWindow = new BrowserWindow({
+    width: 520,
+    height: 720,
+    parent: mainWindow,
+    autoHideMenuBar: true,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      session: ses,
+      spellcheck: true
+    }
+  });
+
+  const authWc = authWindow.webContents;
+  authWc.setUserAgent(defaultUA);
+
+  const serviceType = SERVICE_TYPES[instance.serviceType];
+  const serviceOrigin = new URL(serviceType.url).origin;
+
+  const handleNavigation = (_event, navUrl) => {
+    try {
+      const { hostname } = new URL(navUrl);
+      const isBackToService = navUrl.startsWith(serviceOrigin);
+      const isSlackRedirect = hostname === 'slack.com' || hostname.endsWith('.slack.com');
+
+      if (isBackToService || isSlackRedirect) {
+        if (!authWindow.isDestroyed()) authWindow.close();
+        view.webContents.loadURL(serviceType.url);
+      }
+    } catch {}
+  };
+
+  authWc.on('will-navigate', handleNavigation);
+  authWc.on('did-navigate', handleNavigation);
+
+  authWc.setWindowOpenHandler(({ url }) => {
+    if (isGoogleAuthUrl(url) || url === 'about:blank') {
+      return {
+        action: 'allow',
+        overrideBrowserWindowOptions: {
+          width: 520,
+          height: 720,
+          parent: authWindow,
+          autoHideMenuBar: true,
+          webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true,
+            session: ses,
+            spellcheck: true
+          }
+        }
+      };
+    }
+    shell.openExternal(url);
+    return { action: 'deny' };
+  });
+
+  authWc.loadURL(googleUrl);
+}
+
 function getOrCreateView(instance) {
   if (instanceViews[instance.id]) {
     return instanceViews[instance.id];
@@ -589,6 +662,7 @@ function getOrCreateView(instance) {
   configureSpellChecker(ses);
 
   const serviceType = SERVICE_TYPES[instance.serviceType];
+  const defaultUserAgent = ses.getUserAgent();
 
   // Set user-agent at session level so auth popups also use it
   if (serviceType.userAgent) {
@@ -608,7 +682,19 @@ function getOrCreateView(instance) {
     view.webContents.setUserAgent(serviceType.userAgent);
   }
 
-  view.webContents.setAudioMuted(!preferences.soundsEnabled);
+   view.webContents.setAudioMuted(!preferences.soundsEnabled);
+
+  // Swap user-agent to default for Google auth requests so Google doesn't block login.
+  // This works at the network level, catching HTTP redirects that will-navigate misses.
+  if (serviceType.userAgent) {
+    ses.webRequest.onBeforeSendHeaders(
+      { urls: ['https://*.google.com/*', 'https://accounts.google.com/*'] },
+      (details, callback) => {
+        details.requestHeaders['User-Agent'] = defaultUserAgent;
+        callback({ requestHeaders: details.requestHeaders });
+      }
+    );
+  }
 
   view.webContents.on('did-start-navigation', (_event, navigationUrl, isInPlace, isMainFrame) => {
     const authState = getTeamsAuthState(instance.id);
@@ -630,6 +716,25 @@ function getOrCreateView(instance) {
 
   view.webContents.setWindowOpenHandler(({ url, frameName, disposition }) => {
     const allowTeamsPopup = instance.serviceType === 'teams' && isTeamsAuthPopupUrl(url);
+
+    // Google auth popup: allow in a child window (UA is already swapped at network level)
+    if (serviceType.userAgent && isGoogleAuthUrl(url)) {
+      return {
+        action: 'allow',
+        overrideBrowserWindowOptions: {
+          width: 520,
+          height: 720,
+          parent: mainWindow,
+          autoHideMenuBar: true,
+          webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true,
+            session: ses,
+            spellcheck: true
+          }
+        }
+      };
+    }
 
     if (allowTeamsPopup) {
       return {
