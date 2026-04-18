@@ -38,6 +38,7 @@ if (process.argv.includes('--disable-gpu')) {
 const APP_NAME = 'MensajeriaFur';
 const APP_ICON_PATH = path.join(__dirname, '..', 'icono.png');
 const SUPPORTED_SPELLCHECK_LANGUAGES = ['es-MX', 'es-ES', 'en-US', 'en-GB', 'pt-BR', 'fr-FR', 'de-DE', 'it-IT'];
+const teamsAuthState = {};
 
 // Platform-aware user-agent builder to avoid service blocking on Windows/Linux
 function buildUserAgent(chromeVersion, edgeSuffix = false) {
@@ -410,6 +411,139 @@ function isTeamsAuthPopupUrl(url) {
   }
 }
 
+function getTeamsAuthState(instanceId) {
+  if (!teamsAuthState[instanceId]) {
+    teamsAuthState[instanceId] = {
+      lastSilentAuthUrl: null,
+      authWindow: null,
+      openingInteractiveAuth: false
+    };
+  }
+
+  return teamsAuthState[instanceId];
+}
+
+function buildTeamsInteractiveAuthUrl(url) {
+  try {
+    const parsedUrl = new URL(url);
+
+    if (!parsedUrl.hostname.toLowerCase().endsWith('login.microsoftonline.com')) {
+      return null;
+    }
+
+    parsedUrl.searchParams.set('prompt', 'select_account');
+    parsedUrl.searchParams.delete('sso_reload');
+    return parsedUrl.toString();
+  } catch {
+    return null;
+  }
+}
+
+function isTeamsInteractionRequiredUrl(url) {
+  if (!url) {
+    return false;
+  }
+
+  try {
+    const parsedUrl = new URL(url);
+    return parsedUrl.hostname.toLowerCase() === 'teams.microsoft.com' &&
+      parsedUrl.pathname === '/v2/authv2' &&
+      parsedUrl.hash.includes('error=interaction_required');
+  } catch {
+    return false;
+  }
+}
+
+function openTeamsInteractiveAuthWindow(instance, ses, view, silentAuthUrl) {
+  const authState = getTeamsAuthState(instance.id);
+
+  if (authState.authWindow && !authState.authWindow.isDestroyed()) {
+    authState.authWindow.focus();
+    return;
+  }
+
+  const interactiveUrl = buildTeamsInteractiveAuthUrl(silentAuthUrl);
+  if (!interactiveUrl) {
+    return;
+  }
+
+  authState.openingInteractiveAuth = true;
+
+  const authWindow = new BrowserWindow({
+    width: 520,
+    height: 720,
+    parent: mainWindow,
+    autoHideMenuBar: true,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      session: ses,
+      spellcheck: true
+    }
+  });
+
+  authState.authWindow = authWindow;
+  const authWc = authWindow.webContents;
+  const serviceType = SERVICE_TYPES[instance.serviceType];
+
+  if (serviceType.userAgent) {
+    authWc.setUserAgent(serviceType.userAgent);
+  }
+
+  authWc.setWindowOpenHandler(({ url }) => {
+    const allowTeamsPopup = isTeamsAuthPopupUrl(url);
+
+    if (allowTeamsPopup) {
+      return {
+        action: 'allow',
+        overrideBrowserWindowOptions: {
+          width: 520,
+          height: 720,
+          parent: authWindow,
+          autoHideMenuBar: true,
+          webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true,
+            session: ses,
+            spellcheck: true
+          }
+        }
+      };
+    }
+
+    shell.openExternal(url);
+    return { action: 'deny' };
+  });
+
+  const finishInteractiveAuth = (url) => {
+    authState.lastSilentAuthUrl = null;
+    authState.openingInteractiveAuth = false;
+
+    if (!authWindow.isDestroyed()) {
+      authWindow.close();
+    }
+
+    view.webContents.loadURL(serviceType.url);
+  };
+
+  authWc.on('did-navigate', (_event, url) => {
+    if (url.startsWith('https://teams.microsoft.com/v2/authv2') || url.startsWith('https://teams.microsoft.com/v2/')) {
+      finishInteractiveAuth(url);
+    }
+  });
+
+  authWc.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+    // Silently ignore load failures in auth window (expected for some redirects)
+  });
+
+  authWindow.on('closed', () => {
+    authState.authWindow = null;
+    authState.openingInteractiveAuth = false;
+  });
+
+  authWc.loadURL(interactiveUrl);
+}
+
 function getOrCreateView(instance) {
   if (instanceViews[instance.id]) {
     return instanceViews[instance.id];
@@ -455,6 +589,12 @@ function getOrCreateView(instance) {
   configureSpellChecker(ses);
 
   const serviceType = SERVICE_TYPES[instance.serviceType];
+
+  // Set user-agent at session level so auth popups also use it
+  if (serviceType.userAgent) {
+    ses.setUserAgent(serviceType.userAgent);
+  }
+
   const view = new WebContentsView({
     webPreferences: {
       nodeIntegration: false,
@@ -470,8 +610,28 @@ function getOrCreateView(instance) {
 
   view.webContents.setAudioMuted(!preferences.soundsEnabled);
 
-  view.webContents.setWindowOpenHandler(({ url }) => {
-    if (instance.serviceType === 'teams' && isTeamsAuthPopupUrl(url)) {
+  view.webContents.on('did-start-navigation', (_event, navigationUrl, isInPlace, isMainFrame) => {
+    const authState = getTeamsAuthState(instance.id);
+
+    if (instance.serviceType === 'teams' &&
+      !isMainFrame &&
+      navigationUrl.startsWith('https://login.microsoftonline.com/')) {
+      authState.lastSilentAuthUrl = navigationUrl;
+    }
+
+    if (instance.serviceType === 'teams' &&
+      !isMainFrame &&
+      isTeamsInteractionRequiredUrl(navigationUrl) &&
+      authState.lastSilentAuthUrl &&
+      !authState.openingInteractiveAuth) {
+      openTeamsInteractiveAuthWindow(instance, ses, view, authState.lastSilentAuthUrl);
+    }
+  });
+
+  view.webContents.setWindowOpenHandler(({ url, frameName, disposition }) => {
+    const allowTeamsPopup = instance.serviceType === 'teams' && isTeamsAuthPopupUrl(url);
+
+    if (allowTeamsPopup) {
       return {
         action: 'allow',
         overrideBrowserWindowOptions: {
@@ -491,6 +651,60 @@ function getOrCreateView(instance) {
 
     shell.openExternal(url);
     return { action: 'deny' };
+  });
+
+  // Handle Teams auth popup windows after they are created
+  view.webContents.on('did-create-window', (childWindow) => {
+    if (instance.serviceType !== 'teams') return;
+
+    const childWc = childWindow.webContents;
+
+    // Allow popups opened from the auth popup itself (nested auth flows)
+    childWc.setWindowOpenHandler(({ url: popupUrl }) => {
+      const allowTeamsPopup = isTeamsAuthPopupUrl(popupUrl);
+
+      if (allowTeamsPopup) {
+        return {
+          action: 'allow',
+          overrideBrowserWindowOptions: {
+            width: 520,
+            height: 720,
+            parent: mainWindow,
+            autoHideMenuBar: true,
+            webPreferences: {
+              nodeIntegration: false,
+              contextIsolation: true,
+              session: ses,
+              spellcheck: true
+            }
+          }
+        };
+      }
+      shell.openExternal(popupUrl);
+      return { action: 'deny' };
+    });
+
+    // When the auth popup navigates back to Teams, close it (auth is done)
+    childWc.on('will-navigate', (_event, navUrl) => {
+      try {
+        const { hostname } = new URL(navUrl);
+        if (hostname === 'teams.microsoft.com' && !navUrl.includes('login')) {
+          childWindow.close();
+          // Reload the main Teams view to pick up the new session
+          view.webContents.loadURL(SERVICE_TYPES[instance.serviceType].url);
+        }
+      } catch {}
+    });
+
+    childWc.on('did-navigate', (_event, navUrl) => {
+      try {
+        const { hostname } = new URL(navUrl);
+        if (hostname === 'teams.microsoft.com' && !navUrl.includes('login')) {
+          childWindow.close();
+          view.webContents.loadURL(SERVICE_TYPES[instance.serviceType].url);
+        }
+      } catch {}
+    });
   });
 
   attachEditableContextMenu(view);
