@@ -1,7 +1,7 @@
 {
   "name": "mensajeriafur",
-  "version": "1.0.14",
-  "description": "MensajeriaFur - Todas tus apps de mensajeria en un solo lugar",
+  "version": "1.0.15",
+  "description": "MensajeríaFur - Todas tus apps de mensajería en un solo lugar",
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
@@ -56,7 +56,7 @@
       ],
       "desktop": {
         "Name": "MensajeriaFur",
-        "Comment": "Todas tus apps de mensajeria en un solo lugar",
+        "Comment": "Todas tus apps de mensajería en un solo lugar",
         "StartupWMClass": "MensajeriaFur"
       },
       "extraResources": [

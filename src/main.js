@@ -346,6 +346,7 @@ function createWindow() {
     y: 50,
     backgroundColor: '#1a1a2e',
     icon: APP_ICON_PATH,
+    autoHideMenuBar: process.platform !== 'darwin',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
