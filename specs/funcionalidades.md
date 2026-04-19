@@ -2,7 +2,7 @@
 
 ## Capacidad principal
 
-La app centraliza multiples servicios de mensajeria dentro de una sola ventana de escritorio.
+La app centraliza 18 servicios de mensajeria dentro de una sola ventana de escritorio multiplataforma (macOS, Linux, Windows).
 
 ## Gestion de instancias
 
@@ -34,7 +34,7 @@ Preferencias globales actuales:
 - confirmar antes de eliminar
 - permitir notificaciones
 - permitir sonidos
-- idioma de correccion ortografica
+- idioma de correccion ortografica (soporta: es-MX, es-ES, en-US, en-GB, pt-BR, fr-FR, de-DE, it-IT)
 
 ## Menus y acciones contextuales
 
@@ -49,7 +49,20 @@ Preferencias globales actuales:
 - la descarga no es automatica; el usuario la dispara desde la UI
 - la UI ofrece la accion `Descargar y actualizar`
 - si el usuario inicia esa accion, la instalacion se lanza automaticamente al completar la descarga
+- funciona en todas las plataformas: macOS, Linux y Windows
 
 ## Permisos y medios
 
 La app permite permisos necesarios para mensajeria y videollamadas, como notificaciones, media y screen capture. Las notificaciones pueden bloquearse globalmente desde preferencias.
+
+## Screen sharing
+
+La app puede capturar fuentes de escritorio (ventanas y pantallas) via `desktopCapturer` para功能 como compartir pantalla en videollamadas. Los permisos de screen capture seGestionan via el handler de permisos de sesion.
+
+## Audio
+
+Los webviews pueden estar silenciados o no segun la preferencia `soundsEnabled`. Cuando un servicio esta activo, su audio sigue las preferencias globales de sonido.
+
+## Spellcheck
+
+La app configura el diccionario de spellcheck segun la preferencia `spellcheckLanguage`. Esto se aplica a cada webview de instancia.

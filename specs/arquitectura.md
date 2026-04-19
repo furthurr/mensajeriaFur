@@ -2,7 +2,7 @@
 
 ## Tipo de aplicacion
 
-MensajeriaFur es una aplicacion de escritorio Electron para macOS que centraliza multiples servicios de mensajeria dentro de una sola ventana.
+MensajeriaFur es una aplicacion de escritorio Electron multiplataforma (macOS, Linux, Windows) que centraliza multiples servicios de mensajeria dentro de una sola ventana.
 
 La arquitectura sigue el modelo multiproceso tipico de Electron:
 
@@ -24,6 +24,7 @@ La arquitectura sigue el modelo multiproceso tipico de Electron:
 - persiste datos con `electron-store`
 - expone IPC para el renderer
 - integra `electron-updater`
+- maneja compatibilidad cross-platform (macOS App Nap, Linux X11/NVIDIA, Windows D3D11/Proxy)
 
 ### Preload
 
@@ -74,3 +75,43 @@ La app guarda dos ordenes independientes:
 - `settingsOrder`: orden visual usado dentro del panel de ajustes
 
 Ambos se persisten por separado para no acoplar dos vistas con necesidades distintas.
+
+## Compatibilidad cross-platform
+
+### macOS
+
+- `powerSaveBlocker.start('prevent-app-suspension')` evita que App Nap suspenda webviews en background
+- Menu bar nativa integrada
+- Soporte para Hardened Runtime y notarizacion
+
+### Linux (Ubuntu 24.04+)
+
+- Forza X11 via `--ozone-platform-hint=x11` (Electron 41 tiene bugs conocidos en Wayland)
+- Mitigacion de crashes NVIDIA GPU: `--disable-gpu-sandbox --use-gl=angle --use-angle=vulkan`
+- AppArmor profile bundled para restricciones de seguridad
+- Script `linux/install-icons.sh` para instalar iconos
+
+### Windows (10/11)
+
+- `app.setAppUserModelId('com.mensajeriafur.app')` para agrupacion en taskbar y notificaciones
+- Backend ANGLE D3D11 forzado: `--use-angle=d3d11`
+- Software rasterizer fallback deshabilitado: `--disable-software-rasterizer`
+- Handler para autenticacion proxy/NTLM en redes corporativas
+
+### Recuperacion de GPU
+
+Linux y Windows relanzan automaticamente con `--disable-gpu` cuando el proceso de GPU crashea.
+
+## Auto-update
+
+La app usa `electron-updater` con trigger manual (sin descarga automatica):
+
+1. `checkForUpdates` → consulta si hay nueva version
+2. Si hay disponible, `downloadUpdate` → descarga manual
+3. `installUpdate` → instala al salir de la app
+
+Funciona en todas las plataformas: macOS, Linux y Windows.
+
+## Badge state tracking
+
+Las instancias trackean mensajes no leidos parseando el titulo de la pagina del servicio activo. Cuando una instancia pasa a ser activa, su badge se limpia automaticamente. El renderer recibe actualizaciones via `badge-state-changed` IPC event.
