@@ -152,6 +152,7 @@ jobs:
           path: |
             dist/MensajeriaFur-windows-setup.exe
             dist/MensajeriaFur-windows-portable.exe
+            dist/latest.yml
           if-no-files-found: error
 
       - name: Publish GitHub release assets
@@ -161,3 +162,4 @@ jobs:
           files: |
             dist/MensajeriaFur-windows-setup.exe
             dist/MensajeriaFur-windows-portable.exe
+            dist/latest.yml
