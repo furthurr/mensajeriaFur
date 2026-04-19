@@ -71,10 +71,12 @@
       ]
     },
     "deb": {
-  "license": "Apache-2.0",
-  "homepage": "https://github.com/furthurr/mensajeriaFur",
       "priority": "optional",
-      "section": "net",
+      "fpm": [
+        "--license=Apache-2.0",
+        "--url=https://github.com/furthurr/mensajeriaFur",
+        "--category=net"
+      ],
       "afterInstall": "scripts/linux-after-install.sh",
       "afterRemove": "scripts/linux-after-remove.sh",
       "depends": [
