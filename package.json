@@ -1,6 +1,6 @@
 {
   "name": "mensajeriafur",
-  "version": "1.0.12",
+  "version": "1.0.13",
   "description": "MensajeriaFur - Todas tus apps de mensajeria en un solo lugar",
   "main": "src/main.js",
   "scripts": {
@@ -51,7 +51,8 @@
       "category": "Network",
       "icon": "icono.png",
       "target": [
-        "deb"
+        "deb",
+        "AppImage"
       ],
       "desktop": {
         "Name": "MensajeriaFur",

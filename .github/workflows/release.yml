@@ -102,8 +102,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build Linux .deb
-        run: npx electron-builder --linux deb --${{ matrix.builder_arch }} --publish never '-c.artifactName=MensajeriaFur-linux-${{ matrix.artifact_name }}.${ext}'
+      - name: Build Linux .deb and AppImage
+        run: npx electron-builder --linux deb AppImage --${{ matrix.builder_arch }} --publish never '-c.artifactName=MensajeriaFur-linux-${{ matrix.artifact_name }}.${ext}'
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
@@ -111,6 +111,9 @@ jobs:
           name: mensajeriafur-linux-${{ matrix.artifact_name }}
           path: |
             dist/MensajeriaFur-linux-${{ matrix.artifact_name }}.deb
+            dist/MensajeriaFur-linux-${{ matrix.artifact_name }}.AppImage
+            dist/latest-linux.yml
+            dist/latest-linux-*.yml
           if-no-files-found: error
 
       - name: Publish GitHub release assets
@@ -119,6 +122,9 @@ jobs:
         with:
           files: |
             dist/MensajeriaFur-linux-${{ matrix.artifact_name }}.deb
+            dist/MensajeriaFur-linux-${{ matrix.artifact_name }}.AppImage
+            dist/latest-linux.yml
+            dist/latest-linux-*.yml
 
   build-windows:
     runs-on: windows-latest
