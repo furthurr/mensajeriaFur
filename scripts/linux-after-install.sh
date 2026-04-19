@@ -21,27 +21,33 @@ if [ -f "$PROFILE_SRC" ]; then
 fi
 
 # 3. Install icons in hicolor theme for proper desktop integration
-ICON_SRC="/opt/MensajeriaFur/resources/app/build/icons"
-if [ ! -d "$ICON_SRC" ]; then
-  ICON_SRC="/opt/MensajeriaFur/resources/build/icons"
-fi
-
-for size in 16 32 48 64 128 256 512 1024; do
-  ICON_FILE=""
-  if [ -f "$ICON_SRC/${size}x${size}.png" ]; then
-    ICON_FILE="$ICON_SRC/${size}x${size}.png"
-  elif [ -f "/opt/MensajeriaFur/resources/app.asar.unpacked/build/icons/${size}x${size}.png" ]; then
-    ICON_FILE="/opt/MensajeriaFur/resources/app.asar.unpacked/build/icons/${size}x${size}.png"
+# Note: explicit paths instead of loop variables to avoid electron-builder macro conflicts
+install_icon() {
+  S=$1
+  SRC="/opt/MensajeriaFur/resources/app/build/icons/${S}x${S}.png"
+  if [ ! -f "$SRC" ]; then
+    SRC="/opt/MensajeriaFur/resources/build/icons/${S}x${S}.png"
   fi
-
-  if [ -n "$ICON_FILE" ]; then
-    DEST_DIR="/usr/share/icons/hicolor/${size}x${size}/apps"
-    mkdir -p "$DEST_DIR"
-    cp "$ICON_FILE" "$DEST_DIR/mensajeriafur.png"
+  if [ ! -f "$SRC" ]; then
+    SRC="/opt/MensajeriaFur/resources/app.asar.unpacked/build/icons/${S}x${S}.png"
   fi
-done
+  if [ -f "$SRC" ]; then
+    DEST="/usr/share/icons/hicolor/${S}x${S}/apps"
+    mkdir -p "$DEST"
+    cp "$SRC" "$DEST/mensajeriafur.png"
+  fi
+}
 
-# Also copy the largest icon as the main app icon
+install_icon 16
+install_icon 32
+install_icon 48
+install_icon 64
+install_icon 128
+install_icon 256
+install_icon 512
+install_icon 1024
+
+# Also copy the main icon as fallback
 if [ -f "/opt/MensajeriaFur/icono.png" ]; then
   mkdir -p /usr/share/icons/hicolor/256x256/apps
   cp /opt/MensajeriaFur/icono.png /usr/share/icons/hicolor/256x256/apps/mensajeriafur.png 2>/dev/null || true

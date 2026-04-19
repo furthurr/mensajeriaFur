@@ -10,9 +10,14 @@ if [ -f "$PROFILE" ]; then
 fi
 
 # 2. Remove icons from hicolor theme
-for size in 16 32 48 64 128 256 512 1024; do
-  rm -f "/usr/share/icons/hicolor/${size}x${size}/apps/mensajeriafur.png"
-done
+rm -f /usr/share/icons/hicolor/16x16/apps/mensajeriafur.png
+rm -f /usr/share/icons/hicolor/32x32/apps/mensajeriafur.png
+rm -f /usr/share/icons/hicolor/48x48/apps/mensajeriafur.png
+rm -f /usr/share/icons/hicolor/64x64/apps/mensajeriafur.png
+rm -f /usr/share/icons/hicolor/128x128/apps/mensajeriafur.png
+rm -f /usr/share/icons/hicolor/256x256/apps/mensajeriafur.png
+rm -f /usr/share/icons/hicolor/512x512/apps/mensajeriafur.png
+rm -f /usr/share/icons/hicolor/1024x1024/apps/mensajeriafur.png
 
 # Update icon cache
 if command -v gtk-update-icon-cache &> /dev/null; then
