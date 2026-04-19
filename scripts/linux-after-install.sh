@@ -21,36 +21,9 @@ if [ -f "$PROFILE_SRC" ]; then
 fi
 
 # 3. Install icons in hicolor theme for proper desktop integration
-# Note: explicit paths instead of loop variables to avoid electron-builder macro conflicts
-install_icon() {
-  S=$1
-  SRC="/opt/MensajeriaFur/resources/app/build/icons/${S}x${S}.png"
-  if [ ! -f "$SRC" ]; then
-    SRC="/opt/MensajeriaFur/resources/build/icons/${S}x${S}.png"
-  fi
-  if [ ! -f "$SRC" ]; then
-    SRC="/opt/MensajeriaFur/resources/app.asar.unpacked/build/icons/${S}x${S}.png"
-  fi
-  if [ -f "$SRC" ]; then
-    DEST="/usr/share/icons/hicolor/${S}x${S}/apps"
-    mkdir -p "$DEST"
-    cp "$SRC" "$DEST/mensajeriafur.png"
-  fi
-}
-
-install_icon 16
-install_icon 32
-install_icon 48
-install_icon 64
-install_icon 128
-install_icon 256
-install_icon 512
-install_icon 1024
-
-# Also copy the main icon as fallback
-if [ -f "/opt/MensajeriaFur/icono.png" ]; then
-  mkdir -p /usr/share/icons/hicolor/256x256/apps
-  cp /opt/MensajeriaFur/icono.png /usr/share/icons/hicolor/256x256/apps/mensajeriafur.png 2>/dev/null || true
+# Run external script to avoid electron-builder macro conflicts with shell variables
+if [ -f "/opt/MensajeriaFur/install-icons.sh" ]; then
+  bash /opt/MensajeriaFur/install-icons.sh install
 fi
 
 # Update icon cache

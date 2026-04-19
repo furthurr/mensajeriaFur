@@ -67,6 +67,10 @@
         {
           "from": "linux/apparmor-profile",
           "to": "../apparmor-profile"
+        },
+        {
+          "from": "linux/install-icons.sh",
+          "to": "../install-icons.sh"
         }
       ]
     },
