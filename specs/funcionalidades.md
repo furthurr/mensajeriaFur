@@ -23,6 +23,11 @@ El detalle completo vive en `servicios.md`.
 - permite cambiar de servicio activo
 - soporta reordenamiento manual por drag and drop
 - muestra badges de no leidos cuando el servicio los expone en el titulo de la pagina
+- si la app esta fuera de primer plano, los no leidos mantienen la alerta aunque pertenezcan a la instancia activa
+- al volver la app al primer plano, la instancia activa limpia su badge; otras instancias con no leidos conservan el suyo
+- las alertas globales de app usan badge del sistema y solicitud de atencion de ventana cuando hay no leidos fuera de foco
+- las instancias deshabilitadas no participan en el conteo global de alertas ni conservan una vista activa visible
+- el parser de badges reconoce formatos comunes de titulo como `(3)`, `[3]`, `【3】`, `3 unread`, `new`, `mentions` y variantes equivalentes en espanol
 
 ## Ajustes y preferencias
 

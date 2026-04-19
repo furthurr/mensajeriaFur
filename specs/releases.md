@@ -37,7 +37,7 @@ Se ejecuta en tres jobs parallelos:
 
 | Job | Runner | Artefactos |
 |-----|--------|------------|
-| `build-macos` | `macos-14` | dmg (apple silicon + intel), zip, latest-mac.yml |
+| `build-macos` | `macos-14` | dmg + zip (x64 + arm64), latest-mac.yml |
 | `build-linux` | `ubuntu-24.04` | deb, AppImage (amd64 + arm64), latest-linux.yml |
 | `build-windows` | `windows-latest` | setup.exe, portable.exe, latest.yml |
 
@@ -70,6 +70,13 @@ En Windows, se puede configurar un certificado de firma en electron-builder.
 ## Auto-update
 
 El auto-update funciona en todas las plataformas (macOS, Linux, Windows) usando `electron-updater` con GitHub como provider.
+
+Reglas de publicacion para que no se rompa el updater:
+
+- macOS debe publicar `.zip` y `.dmg` para `x64` y `arm64`; `latest-mac.yml` debe apuntar a los nombres exactos generados por electron-builder
+- no se deben renombrar artefactos despues del build si tambien se publica metadata `latest*.yml`, porque eso desincroniza el feed
+- Linux debe publicar el `.AppImage` referenciado por `latest-linux*.yml`
+- Windows debe publicar el instalador NSIS referenciado por `latest.yml`
 
 El flujo es manual: el usuario dispara la descarga desde la UI, y la instalacion ocurre al cerrar la app.
 

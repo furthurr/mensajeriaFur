@@ -788,6 +788,10 @@ function handleUpdateStatus(data) {
       break;
 
     case 'error':
+      if (!manualUpdateCheckRequested && !installUpdateAfterDownload && !elements.updateModal.classList.contains('visible')) {
+        break;
+      }
+
       manualUpdateCheckRequested = false;
       installUpdateAfterDownload = false;
       elements.updateModalTitle.textContent = 'Error de actualizacion';

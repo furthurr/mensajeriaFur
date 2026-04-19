@@ -162,15 +162,99 @@ function getEmptyBadgeState() {
   return { hasUnread: false, count: null };
 }
 
+function isAppInForeground() {
+  return Boolean(
+    mainWindow &&
+    !mainWindow.isDestroyed() &&
+    mainWindow.isVisible() &&
+    !mainWindow.isMinimized() &&
+    mainWindow.isFocused()
+  );
+}
+
+function getUnreadSummary() {
+  let totalCount = 0;
+  let hasUnread = false;
+
+  Object.entries(instanceBadges).forEach(([instanceId, badge]) => {
+    const instance = instances.find((item) => item.id === instanceId);
+
+    if (!instance?.enabled) {
+      return;
+    }
+
+    if (!badge?.hasUnread) {
+      return;
+    }
+
+    hasUnread = true;
+    totalCount += badge.count && badge.count > 0 ? badge.count : 1;
+  });
+
+  return { hasUnread, totalCount };
+}
+
+function syncAppAttentionState() {
+  const { hasUnread, totalCount } = getUnreadSummary();
+  const shouldAlert = hasUnread && !isAppInForeground();
+  const badgeCount = shouldAlert ? totalCount : 0;
+
+  app.setBadgeCount(badgeCount);
+
+  if (mainWindow && !mainWindow.isDestroyed() && process.platform !== 'darwin') {
+    mainWindow.flashFrame(shouldAlert);
+  }
+}
+
+function clearActiveBadgeIfForeground() {
+  if (activeInstanceId && isAppInForeground()) {
+    clearBadgeState(activeInstanceId);
+  }
+}
+
 function parseUnreadFromTitle(title = '') {
-  const leadingCountMatch = title.match(/^\((\d+)\)/);
-  if (leadingCountMatch) {
-    return { hasUnread: true, count: Number(leadingCountMatch[1]) };
+  const normalizedTitle = String(title).trim();
+
+  if (!normalizedTitle) {
+    return getEmptyBadgeState();
   }
 
-  const trailingCountMatch = title.match(/\b(\d+)\b(?=.*(?:mensaje|mensajes|chat|chats|notification|notifications))/i);
-  if (trailingCountMatch) {
-    return { hasUnread: true, count: Number(trailingCountMatch[1]) };
+  const leadingCountPatterns = [
+    /^\((\d+)\+?\)/,
+    /^\[(\d+)\+?\]/,
+    /^\{(\d+)\+?\}/,
+    /^【(\d+)\+?】/,
+    /^<(?:(\d+)\+?)>/
+  ];
+
+  for (const pattern of leadingCountPatterns) {
+    const match = normalizedTitle.match(pattern);
+
+    if (match) {
+      return { hasUnread: true, count: Number(match[1]) };
+    }
+  }
+
+  const labeledCountPatterns = [
+    /\b(\d+)\+?\b(?=.*(?:mensaje|mensajes|chat|chats|notification|notifications|unread|new|nuevo|nuevos|nueva|nuevas|mention|mentions|mencion|menciones))/i,
+    /(?:mensaje|mensajes|chat|chats|notification|notifications|unread|new|nuevo|nuevos|nueva|nuevas|mention|mentions|mencion|menciones)[^\d]{0,12}(\d+)\+?/i
+  ];
+
+  for (const pattern of labeledCountPatterns) {
+    const match = normalizedTitle.match(pattern);
+
+    if (match) {
+      return { hasUnread: true, count: Number(match[1]) };
+    }
+  }
+
+  const unreadIndicatorPatterns = [
+    /^[*•●·]/,
+    /(?:^|\s)(?:unread|new|nuevo|nuevos|nueva|nuevas|mention|mentions|mencion|menciones|notification|notifications)(?:\s|$)/i
+  ];
+
+  if (unreadIndicatorPatterns.some((pattern) => pattern.test(normalizedTitle))) {
+    return { hasUnread: true, count: null };
   }
 
   return getEmptyBadgeState();
@@ -197,6 +281,7 @@ function updateBadgeState(instanceId, badge) {
 
   instanceBadges[instanceId] = nextBadge;
   sendBadgeState(instanceId);
+  syncAppAttentionState();
 }
 
 function clearBadgeState(instanceId) {
@@ -279,7 +364,13 @@ function attachEditableContextMenu(view) {
 function attachBadgeTracking(view, instance) {
   view.webContents.on('page-title-updated', (event, title) => {
     const badge = parseUnreadFromTitle(title);
-    if (!badge.hasUnread || instance.id === activeInstanceId) {
+
+    if (!badge.hasUnread) {
+      clearBadgeState(instance.id);
+      return;
+    }
+
+    if (instance.id === activeInstanceId && isAppInForeground()) {
       clearBadgeState(instance.id);
       return;
     }
@@ -360,6 +451,33 @@ function createWindow() {
     if (activeInstanceId && instanceViews[activeInstanceId]) {
       updateViewBounds(instanceViews[activeInstanceId]);
     }
+  });
+
+  mainWindow.on('focus', () => {
+    clearActiveBadgeIfForeground();
+    syncAppAttentionState();
+  });
+
+  mainWindow.on('blur', () => {
+    syncAppAttentionState();
+  });
+
+  mainWindow.on('show', () => {
+    clearActiveBadgeIfForeground();
+    syncAppAttentionState();
+  });
+
+  mainWindow.on('hide', () => {
+    syncAppAttentionState();
+  });
+
+  mainWindow.on('restore', () => {
+    clearActiveBadgeIfForeground();
+    syncAppAttentionState();
+  });
+
+  mainWindow.on('minimize', () => {
+    syncAppAttentionState();
   });
 
   mainWindow.on('closed', () => {
@@ -786,7 +904,11 @@ function switchToInstance(instanceId) {
 
   activeInstanceId = instanceId;
   store.set('activeInstanceId', activeInstanceId);
-  clearBadgeState(instanceId);
+
+  if (isAppInForeground()) {
+    clearBadgeState(instanceId);
+  }
+
   setActiveViewVisible(activeViewVisible);
 
   if (mainWindow && !mainWindow.isDestroyed()) {
@@ -946,6 +1068,34 @@ function updateInstance(id, data) {
   store.set('instances', instances);
 
   if (data.enabled !== undefined) {
+    if (!instances[index].enabled) {
+      clearBadgeState(id);
+
+      if (activeInstanceId === id) {
+        const nextActiveInstance = getEnabledSidebarInstances().find((instance) => instance.id !== id) || null;
+
+        if (nextActiveInstance) {
+          switchToInstance(nextActiveInstance.id);
+        } else {
+          if (activeViewAttached && instanceViews[id]) {
+            try {
+              mainWindow.contentView.removeChildView(instanceViews[id]);
+            } catch (e) {
+            }
+
+            activeViewAttached = false;
+          }
+
+          activeInstanceId = null;
+          store.set('activeInstanceId', null);
+
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('active-instance-changed', null);
+          }
+        }
+      }
+    }
+
     rebuildMenu();
   }
 
@@ -972,6 +1122,7 @@ function deleteInstance(id) {
   }
 
   delete instanceBadges[id];
+  syncAppAttentionState();
 
   session.fromPartition(`persist:${id}`).clearStorageData();
 
@@ -1132,6 +1283,14 @@ function setupIpcHandlers() {
   });
 
   ipcMain.on('download-update', () => {
+    if (!canDownloadUpdate) {
+      sendUpdateStatus({
+        status: 'error',
+        message: 'No hay una actualizacion valida lista para descargar en esta plataforma.'
+      });
+      return;
+    }
+
     autoUpdater.downloadUpdate().catch(() => {});
   });
 
@@ -1146,19 +1305,120 @@ function sendUpdateStatus(data) {
   }
 }
 
+let canDownloadUpdate = false;
+
+function getUpdateFileUrls(info) {
+  const urls = [];
+
+  if (typeof info?.path === 'string' && info.path) {
+    urls.push(info.path);
+  }
+
+  if (Array.isArray(info?.files)) {
+    for (const file of info.files) {
+      if (typeof file?.url === 'string' && file.url) {
+        urls.push(file.url);
+      }
+
+      if (typeof file?.info?.url === 'string' && file.info.url) {
+        urls.push(file.info.url);
+      }
+    }
+  }
+
+  return [...new Set(urls)];
+}
+
+function getExpectedUpdateArtifactExtensions() {
+  switch (process.platform) {
+    case 'darwin':
+      return ['.zip'];
+    case 'linux':
+      return ['.appimage'];
+    case 'win32':
+      return ['.exe'];
+    default:
+      return [];
+  }
+}
+
+function validateUpdateMetadata(info) {
+  const expectedExtensions = getExpectedUpdateArtifactExtensions();
+
+  if (!expectedExtensions.length) {
+    return null;
+  }
+
+  const files = getUpdateFileUrls(info);
+
+  if (!files.length) {
+    return {
+      userMessage: 'La actualizacion publicada no incluye archivos descargables validos para esta plataforma.',
+      logMessage: 'Updater metadata did not include any downloadable files'
+    };
+  }
+
+  const hasSupportedArtifact = files.some((file) => {
+    const normalizedFile = String(file).toLowerCase();
+    return expectedExtensions.some((extension) => normalizedFile.endsWith(extension));
+  });
+
+  if (hasSupportedArtifact) {
+    return null;
+  }
+
+  const platformLabel = process.platform === 'darwin'
+    ? 'macOS (.zip)'
+    : process.platform === 'linux'
+      ? 'Linux (.AppImage)'
+      : 'Windows (.exe)';
+
+  return {
+    userMessage: `La actualizacion publicada es invalida para ${platformLabel}. Intenta nuevamente cuando se publique una version corregida.`,
+    logMessage: `Updater metadata is missing a supported artifact for ${process.platform}: ${JSON.stringify(files)}`
+  };
+}
+
+function normalizeUpdateErrorMessage(err) {
+  const rawMessage = err?.message || 'Error desconocido';
+  const message = rawMessage.toLowerCase();
+
+  if (message.includes('zip file not provided')) {
+    return 'La actualizacion de macOS publicada es invalida porque falta el archivo .zip requerido.';
+  }
+
+  if (message.includes('appimage') && message.includes('not provided')) {
+    return 'La actualizacion de Linux publicada es invalida porque falta el archivo .AppImage requerido.';
+  }
+
+  return rawMessage;
+}
+
 function setupAutoUpdater() {
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = true;
 
   autoUpdater.on('checking-for-update', () => {
+    canDownloadUpdate = false;
     sendUpdateStatus({ status: 'checking' });
   });
 
   autoUpdater.on('update-available', (info) => {
+    const validationError = validateUpdateMetadata(info);
+
+    if (validationError) {
+      canDownloadUpdate = false;
+      console.error(validationError.logMessage);
+      sendUpdateStatus({ status: 'error', message: validationError.userMessage });
+      return;
+    }
+
+    canDownloadUpdate = true;
     sendUpdateStatus({ status: 'available', version: info.version, releaseNotes: info.releaseNotes });
   });
 
   autoUpdater.on('update-not-available', () => {
+    canDownloadUpdate = false;
     sendUpdateStatus({ status: 'not-available' });
   });
 
@@ -1167,11 +1427,13 @@ function setupAutoUpdater() {
   });
 
   autoUpdater.on('update-downloaded', () => {
+    canDownloadUpdate = false;
     sendUpdateStatus({ status: 'downloaded' });
   });
 
   autoUpdater.on('error', (err) => {
-    sendUpdateStatus({ status: 'error', message: err?.message || 'Error desconocido' });
+    canDownloadUpdate = false;
+    sendUpdateStatus({ status: 'error', message: normalizeUpdateErrorMessage(err) });
   });
 }
 
