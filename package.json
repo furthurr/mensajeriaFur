@@ -48,16 +48,20 @@
       ]
     },
     "linux": {
-      "category": "Network",
-      "icon": "icono.png",
+      "category": "Network;InstantMessaging;Chat;",
+      "icon": "build/icons",
+      "vendor": "PedroGomez",
+      "synopsis": "Todas tus apps de mensajería en un solo lugar",
       "target": [
         "deb",
         "AppImage"
       ],
       "desktop": {
-        "Name": "MensajeriaFur",
+        "Name": "MensajeríaFur",
+        "GenericName": "Centro de Mensajería",
         "Comment": "Todas tus apps de mensajería en un solo lugar",
-        "StartupWMClass": "MensajeriaFur"
+        "StartupWMClass": "MensajeriaFur",
+        "Keywords": "mensajeria;whatsapp;telegram;slack;discord;teams;chat;"
       },
       "extraResources": [
         {
@@ -67,6 +71,10 @@
       ]
     },
     "deb": {
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/furthurr/mensajeriaFur",
+      "priority": "optional",
+      "section": "net",
       "afterInstall": "scripts/linux-after-install.sh",
       "afterRemove": "scripts/linux-after-remove.sh",
       "depends": [
@@ -128,6 +136,7 @@
     },
     "files": [
       "src/**/*",
+      "build/icons/**/*",
       "icono.png",
       "icono.ico",
       "mensajeriaFur_fondo.png",
