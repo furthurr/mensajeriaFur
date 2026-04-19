@@ -40,14 +40,12 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: npx electron-builder --mac dmg zip --x64 --arm64 --publish never '-c.artifactName=MensajeriaFur-macos-${arch}.${ext}'
+        run: npx electron-builder --mac dmg --x64 --arm64 --publish never '-c.artifactName=MensajeriaFur-macos-${arch}.${ext}'
 
       - name: Create user-friendly macOS aliases
         run: |
-          cp dist/MensajeriaFur-macos-arm64.dmg dist/MensajeriaFur-macos-apple-silicon.dmg
-          cp dist/MensajeriaFur-macos-arm64.zip dist/MensajeriaFur-macos-apple-silicon.zip
-          cp dist/MensajeriaFur-macos-x64.dmg dist/MensajeriaFur-macos-intel.dmg
-          cp dist/MensajeriaFur-macos-x64.zip dist/MensajeriaFur-macos-intel.zip
+          mv dist/MensajeriaFur-macos-arm64.dmg dist/MensajeriaFur-macos-apple-silicon.dmg
+          mv dist/MensajeriaFur-macos-x64.dmg dist/MensajeriaFur-macos-intel.dmg
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
@@ -55,11 +53,7 @@ jobs:
           name: mensajeriafur-macos
           path: |
             dist/MensajeriaFur-macos-apple-silicon.dmg
-            dist/MensajeriaFur-macos-apple-silicon.zip
             dist/MensajeriaFur-macos-intel.dmg
-            dist/MensajeriaFur-macos-intel.zip
-            dist/MensajeriaFur-macos-arm64.zip
-            dist/MensajeriaFur-macos-x64.zip
             dist/latest-mac.yml
             dist/*.blockmap
           if-no-files-found: error
@@ -70,11 +64,7 @@ jobs:
         with:
           files: |
             dist/MensajeriaFur-macos-apple-silicon.dmg
-            dist/MensajeriaFur-macos-apple-silicon.zip
             dist/MensajeriaFur-macos-intel.dmg
-            dist/MensajeriaFur-macos-intel.zip
-            dist/MensajeriaFur-macos-arm64.zip
-            dist/MensajeriaFur-macos-x64.zip
             dist/latest-mac.yml
             dist/*.blockmap
 
