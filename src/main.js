@@ -1,4 +1,4 @@
-const { app, BrowserWindow, WebContentsView, ipcMain, session, Menu, shell, desktopCapturer, powerSaveBlocker } = require('electron');
+const { app, BrowserWindow, WebContentsView, ipcMain, session, Menu, shell, desktopCapturer, powerSaveBlocker, systemPreferences } = require('electron');
 const path = require('path');
 const crypto = require('crypto');
 const Store = require('electron-store');
@@ -148,6 +148,84 @@ function configureSpellChecker(ses) {
   }
 
   ses.setSpellCheckerLanguages([preferences.spellcheckLanguage]);
+}
+
+function getRequestedMediaAccessTypes(details = {}) {
+  const requestedTypes = new Set();
+  const mediaTypes = Array.isArray(details.mediaTypes) ? details.mediaTypes : [];
+
+  mediaTypes.forEach((mediaType) => {
+    if (mediaType === 'video') {
+      requestedTypes.add('camera');
+    }
+
+    if (mediaType === 'audio') {
+      requestedTypes.add('microphone');
+    }
+  });
+
+  if (details.mediaType === 'video') {
+    requestedTypes.add('camera');
+  }
+
+  if (details.mediaType === 'audio') {
+    requestedTypes.add('microphone');
+  }
+
+  if (!requestedTypes.size) {
+    requestedTypes.add('camera');
+    requestedTypes.add('microphone');
+  }
+
+  return [...requestedTypes];
+}
+
+async function ensureMacMediaAccess(details = {}) {
+  if (process.platform !== 'darwin') {
+    return true;
+  }
+
+  const requestedTypes = getRequestedMediaAccessTypes(details);
+
+  for (const mediaType of requestedTypes) {
+    const status = systemPreferences.getMediaAccessStatus(mediaType);
+
+    if (status === 'denied' || status === 'restricted') {
+      return false;
+    }
+  }
+
+  for (const mediaType of requestedTypes) {
+    if (systemPreferences.getMediaAccessStatus(mediaType) === 'not-determined') {
+      const granted = await systemPreferences.askForMediaAccess(mediaType);
+
+      if (!granted) {
+        return false;
+      }
+    }
+  }
+
+  return requestedTypes.every((mediaType) => {
+    const status = systemPreferences.getMediaAccessStatus(mediaType);
+    return status === 'granted' || status === 'unknown';
+  });
+}
+
+async function selectDisplayMediaStreams(request) {
+  const sources = await desktopCapturer.getSources({
+    types: ['screen', 'window'],
+    thumbnailSize: { width: 150, height: 150 }
+  });
+  const preferredSource = sources.find((source) => source.id.startsWith('screen:')) || sources[0];
+
+  if (!preferredSource) {
+    return {};
+  }
+
+  return {
+    video: preferredSource,
+    audio: request.audioRequested && process.platform === 'win32' ? 'loopback' : undefined
+  };
 }
 
 function applySpellcheckPreference() {
@@ -682,7 +760,7 @@ function getOrCreateView(instance) {
 
   const ses = session.fromPartition(`persist:${instance.id}`);
 
-  ses.setPermissionRequestHandler((webContents, permission, callback) => {
+  ses.setPermissionRequestHandler(async (webContents, permission, callback, details) => {
     const allowed = [
       'notifications',
       'media',
@@ -696,6 +774,12 @@ function getOrCreateView(instance) {
       callback(false);
       return;
     }
+
+    if (permission === 'media') {
+      callback(await ensureMacMediaAccess(details));
+      return;
+    }
+
     callback(allowed.includes(permission));
   });
 
@@ -716,6 +800,17 @@ function getOrCreateView(instance) {
   // Allow access to specific media devices (camera, microphone, speakers)
   // Required on Windows for getUserMedia device selection to work
   ses.setDevicePermissionHandler((_details) => true);
+
+  ses.setDisplayMediaRequestHandler(async (request, callback) => {
+    try {
+      callback(await selectDisplayMediaStreams(request));
+    } catch (err) {
+      console.error('display media request failed:', err.message);
+      callback({});
+    }
+  }, {
+    useSystemPicker: process.platform === 'darwin'
+  });
 
   configureSpellChecker(ses);
 

@@ -84,6 +84,13 @@ El flujo es manual: el usuario dispara la descarga desde la UI, y la instalacion
 
 Si cambian los formatos de salida, el proceso de build, la publicacion o el flujo de actualizaciones, tambien debe actualizarse esta spec.
 
+## Version 1.0.18
+
+Cambios incluidos en esta version:
+
+- correccion de permisos nativos para camara y microfono en macOS
+- soporte explicito del flujo `getDisplayMedia` para compartir pantalla en servicios como Teams
+
 ## Version 1.0.16
 
 Cambios incluidos en esta version:

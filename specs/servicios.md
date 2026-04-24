@@ -47,6 +47,8 @@ Teams también tiene manejo interactivo de autenticacion:
 - Abre una ventana de autenticacion interactiva cuando `error=interaction_required` aparece
 - El popup de auth puede abrir popups anidados que также se manejan
 
+Teams usa los handlers nativos de permisos multimedia y display media del proceso principal para soportar camara, microfono y compartir pantalla dentro del webview.
+
 ### Google Auth popups
 
 Cuando un servicio usa user agent override (WhatsApp, Slack, Teams), los popups de Google Auth usan el user agent por defecto para evitar bloqueos de Google.

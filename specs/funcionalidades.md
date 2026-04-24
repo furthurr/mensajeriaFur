@@ -60,9 +60,11 @@ Preferencias globales actuales:
 
 La app permite permisos necesarios para mensajeria y videollamadas, como notificaciones, media y screen capture. Las notificaciones pueden bloquearse globalmente desde preferencias.
 
+En macOS, cuando un servicio solicita camara o microfono via `getUserMedia`, la app consulta el estado nativo del sistema y dispara el prompt de permiso del sistema si el acceso aun no fue decidido.
+
 ## Screen sharing
 
-La app puede capturar fuentes de escritorio (ventanas y pantallas) via `desktopCapturer` para功能 como compartir pantalla en videollamadas. Los permisos de screen capture seGestionan via el handler de permisos de sesion.
+La app puede capturar fuentes de escritorio (ventanas y pantallas) via `desktopCapturer` para compartir pantalla en videollamadas. Los permisos de screen capture se gestionan via el handler de permisos de sesion y el flujo de `getDisplayMedia` del proceso principal.
 
 ## Audio
 
