@@ -273,6 +273,16 @@ function getUnreadSummary() {
 }
 
 function syncAppAttentionState() {
+  const hasDisabledServices = instances.some(i => !i.enabled);
+
+  if (hasDisabledServices) {
+    app.setBadgeCount(0);
+    if (mainWindow && !mainWindow.isDestroyed() && process.platform !== 'darwin') {
+      mainWindow.flashFrame(false);
+    }
+    return;
+  }
+
   const { hasUnread, totalCount } = getUnreadSummary();
   const shouldAlert = hasUnread && !isAppInForeground();
   const badgeCount = shouldAlert ? totalCount : 0;
@@ -985,6 +995,22 @@ function switchToInstance(instanceId) {
     activeViewAttached = false;
   }
 
+  if (!instance.enabled) {
+    activeInstanceId = null;
+    store.set('activeInstanceId', null);
+
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('show-disabled-service-view', true);
+      mainWindow.webContents.send('active-instance-changed', null);
+      mainWindow.webContents.send('instances-changed', instances);
+    }
+
+    rebuildMenu();
+    return;
+  }
+
+  mainWindow.webContents.send('show-disabled-service-view', false);
+
   const view = getOrCreateView(instance);
 
   const currentUrl = view.webContents.getURL();
@@ -1165,29 +1191,39 @@ function updateInstance(id, data) {
   if (data.enabled !== undefined) {
     if (!instances[index].enabled) {
       clearBadgeState(id);
+      syncAppAttentionState();
+
+      if (instanceViews[id]) {
+        if (activeViewAttached && activeInstanceId === id) {
+          try {
+            mainWindow.contentView.removeChildView(instanceViews[id]);
+          } catch (e) {
+          }
+          activeViewAttached = false;
+        }
+
+        try {
+          instanceViews[id].webContents.destroy();
+        } catch (e) {
+        }
+        delete instanceViews[id];
+      }
+
+      session.fromPartition(`persist:${id}`).clearStorageData();
 
       if (activeInstanceId === id) {
-        const nextActiveInstance = getEnabledSidebarInstances().find((instance) => instance.id !== id) || null;
+        activeInstanceId = null;
+        store.set('activeInstanceId', null);
 
-        if (nextActiveInstance) {
-          switchToInstance(nextActiveInstance.id);
-        } else {
-          if (activeViewAttached && instanceViews[id]) {
-            try {
-              mainWindow.contentView.removeChildView(instanceViews[id]);
-            } catch (e) {
-            }
-
-            activeViewAttached = false;
-          }
-
-          activeInstanceId = null;
-          store.set('activeInstanceId', null);
-
-          if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('active-instance-changed', null);
-          }
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('show-disabled-service-view', true);
+          mainWindow.webContents.send('active-instance-changed', null);
         }
+      }
+    } else {
+      syncAppAttentionState();
+      if (activeInstanceId !== id) {
+        switchToInstance(id);
       }
     }
 
@@ -1313,21 +1349,39 @@ function setupIpcHandlers() {
       return;
     }
 
-    const menu = Menu.buildFromTemplate([
-      {
-        label: 'Recargar',
-        click: () => {
-          event.sender.send('instance-context-action', { action: 'reload', instanceId });
-        }
-      },
-      {
-        label: 'Eliminar',
-        click: () => {
-          event.sender.send('instance-context-action', { action: 'delete', instanceId });
-        }
-      }
-    ]);
+    const template = [];
 
+    if (instance.enabled) {
+      template.push({
+        label: 'Desactivar',
+        click: () => {
+          event.sender.send('instance-context-action', { action: 'disable', instanceId });
+        }
+      });
+    } else {
+      template.push({
+        label: 'Activar',
+        click: () => {
+          event.sender.send('instance-context-action', { action: 'enable', instanceId });
+        }
+      });
+    }
+
+    template.push({
+      label: 'Recargar',
+      click: () => {
+        event.sender.send('instance-context-action', { action: 'reload', instanceId });
+      }
+    });
+
+    template.push({
+      label: 'Eliminar',
+      click: () => {
+        event.sender.send('instance-context-action', { action: 'delete', instanceId });
+      }
+    });
+
+    const menu = Menu.buildFromTemplate(template);
     menu.popup({ window: win });
   });
 

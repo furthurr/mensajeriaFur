@@ -95,3 +95,13 @@ There are no `test`, `lint`, or `typecheck` commands.
 - Commit messages follow **Conventional Commits** (mix of English and Spanish).
 - Root PNG images (`icono.png`, `mensajeriaFur_fondo.png`, `pedro.png`) and ICO (`icono.ico`) are bundled into the app via electron-builder `files` config — do not move or rename without updating `package.json` build config.
 - Specs are authoritative and must be updated when product behavior changes (`specs-check.yml` enforces this on PRs).
+
+## Specs enforcement (CI)
+
+The `specs-check.yml` workflow runs on every push (except `v*` tags) and PR. It requires `specs/` to be updated when these files change:
+
+```
+src/, package.json, package-lock.json, scripts/notarize.js, .github/workflows/release.yml
+```
+
+This pattern is defined in the workflow as `RELEVANT_PATTERN`. If your change touches any of these and you don't update `specs/`, the PR will fail CI.

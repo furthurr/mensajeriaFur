@@ -33,6 +33,9 @@ contextBridge.exposeInMainWorld('api', {
   onBadgeStateChanged: (callback) => {
     ipcRenderer.on('badge-state-changed', (event, data) => callback(data));
   },
+  onShowDisabledServiceView: (callback) => {
+    ipcRenderer.on('show-disabled-service-view', (event, show) => callback(show));
+  },
   checkForUpdates: () => ipcRenderer.send('check-for-updates'),
   downloadUpdate: () => ipcRenderer.send('download-update'),
   installUpdate: () => ipcRenderer.send('install-update'),

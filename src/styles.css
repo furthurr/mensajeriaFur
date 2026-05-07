@@ -101,21 +101,6 @@ body[data-theme='light'] .btn-cancel:hover {
   background: rgba(15, 23, 42, 0.09);
 }
 
-body[data-theme='light'] .instance-toggle {
-  background: rgba(15, 23, 42, 0.14);
-  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.18);
-}
-
-body[data-theme='light'] .instance-toggle::after {
-  background: #ffffff;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.22);
-}
-
-body[data-theme='light'] .instance-toggle.active {
-  background: var(--accent);
-  box-shadow: none;
-}
-
 * {
   margin: 0;
   padding: 0;
@@ -213,6 +198,15 @@ body {
   height: 24px;
   background: var(--accent);
   border-radius: 0 4px 4px 0;
+}
+
+.service-btn.disabled {
+  opacity: 0.4;
+  filter: grayscale(0.7);
+}
+
+.service-btn.disabled:hover {
+  opacity: 0.6;
 }
 
 .service-btn .service-icon {
@@ -1045,34 +1039,93 @@ body[data-theme='light'] .settings-link-btn-primary:hover {
   text-overflow: ellipsis;
 }
 
-.instance-toggle {
-  position: relative;
-  width: 44px;
-  height: 24px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  cursor: pointer;
-  transition: background 0.2s ease;
-}
-
-.instance-toggle.active {
-  background: var(--accent);
-}
-
-.instance-toggle::after {
-  content: '';
-  position: absolute;
-  top: 2px;
-  left: 2px;
+.preference-checkbox {
   width: 20px;
   height: 20px;
-  background: white;
-  border-radius: 50%;
-  transition: transform 0.2s ease;
+  appearance: none;
+  background: rgba(255, 255, 255, 0.08);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.instance-toggle.active::after {
-  transform: translateX(20px);
+.preference-checkbox:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.preference-checkbox:checked::after {
+  content: '';
+  width: 10px;
+  height: 10px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'%3E%3C/polyline%3E%3C/svg%3E");
+  background-size: contain;
+  background-repeat: no-repeat;
+}
+
+body[data-theme='light'] .preference-checkbox {
+  background: rgba(15, 23, 42, 0.06);
+  border-color: rgba(15, 23, 42, 0.2);
+}
+
+body[data-theme='light'] .preference-checkbox:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.checkbox-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.checkbox-custom {
+  display: none;
+}
+
+.instance-checkbox {
+  width: 20px;
+  height: 20px;
+  appearance: none;
+  background: rgba(255, 255, 255, 0.08);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.instance-checkbox:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.instance-checkbox:checked::after {
+  content: '';
+  width: 10px;
+  height: 10px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'%3E%3C/polyline%3E%3C/svg%3E");
+  background-size: contain;
+  background-repeat: no-repeat;
+}
+
+body[data-theme='light'] .instance-checkbox {
+  background: rgba(15, 23, 42, 0.06);
+  border-color: rgba(15, 23, 42, 0.2);
+}
+
+body[data-theme='light'] .instance-checkbox:checked {
+  background: var(--accent);
+  border-color: var(--accent);
 }
 
 .instance-actions {
@@ -1608,4 +1661,27 @@ body[data-theme='light'] .update-progress-bar {
 
 .drag-over {
   border: 2px dashed var(--accent);
+}
+
+/* ====== Disabled Service View ====== */
+#disabled-service-view {
+  position: fixed;
+  top: 0;
+  left: 70px;
+  width: calc(100% - 70px);
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #888;
+  font-size: 18px;
+  z-index: 5;
+  pointer-events: none;
+}
+
+#disabled-service-view p {
+  padding: 20px 40px;
+  background: var(--bg-surface);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
 }

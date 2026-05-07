@@ -89,6 +89,7 @@ function cacheElements() {
   elements.updateProgressText = document.getElementById('update-progress-text');
   elements.btnUpdateLater = document.getElementById('btn-update-later');
   elements.btnUpdateDownload = document.getElementById('btn-update-download');
+  elements.disabledServiceView = document.getElementById('disabled-service-view');
 }
 
 async function init() {
@@ -126,6 +127,12 @@ async function init() {
     handleUpdateStatus(data);
   });
 
+  window.api.onShowDisabledServiceView((show) => {
+    if (elements.disabledServiceView) {
+      elements.disabledServiceView.classList.toggle('hidden', !show);
+    }
+  });
+
   window.api.onInstanceContextAction(({ action, instanceId }) => {
     if (action === 'reload') {
       window.api.reloadInstance(instanceId);
@@ -134,6 +141,17 @@ async function init() {
 
     if (action === 'delete') {
       requestDeleteInstance(instanceId);
+      return;
+    }
+
+    if (action === 'disable') {
+      window.api.updateInstance(instanceId, { enabled: false });
+      return;
+    }
+
+    if (action === 'enable') {
+      window.api.updateInstance(instanceId, { enabled: true });
+      return;
     }
   });
 
@@ -148,17 +166,20 @@ async function init() {
 
 function renderSidebar() {
   elements.serviceList.innerHTML = '';
-  
-  const enabledInstances = sidebarOrder
-    .map(id => instances.find(i => i.id === id))
-    .filter(i => i && i.enabled);
 
-  enabledInstances.forEach((instance, index) => {
+  const orderedInstances = sidebarOrder
+    .map(id => instances.find(i => i.id === id))
+    .filter(i => i);
+
+  orderedInstances.forEach((instance, index) => {
     const serviceType = serviceTypes.find(st => st.id === instance.serviceType);
     if (!serviceType) return;
 
     const btn = document.createElement('button');
     btn.className = 'service-btn';
+    if (!instance.enabled) {
+      btn.classList.add('disabled');
+    }
     btn.setAttribute('data-instance-id', instance.id);
     btn.setAttribute('draggable', 'true');
     btn.setAttribute('data-tooltip', `${serviceType.name} - ${instance.name}`);
@@ -174,7 +195,7 @@ function renderSidebar() {
     elements.serviceList.appendChild(btn);
   });
 
-  const hasEnabledInstances = enabledInstances.length > 0;
+  const hasEnabledInstances = orderedInstances.some(i => i.enabled);
   elements.welcome.classList.toggle('hidden', hasEnabledInstances);
 
   attachSidebarEvents();
@@ -213,10 +234,13 @@ function renderWelcomeServiceChips() {
 
 function attachSidebarEvents() {
   const buttons = elements.serviceList.querySelectorAll('.service-btn');
-  
+
   buttons.forEach(btn => {
     btn.addEventListener('click', () => {
       const instanceId = btn.getAttribute('data-instance-id');
+      const instance = instances.find(i => i.id === instanceId);
+      if (!instance) return;
+
       if (instanceId !== activeInstanceId) {
         switchToInstance(instanceId);
       }
@@ -461,17 +485,17 @@ function renderSpellcheckLanguageOptions() {
 }
 
 function renderPreferenceToggle(key, title, description) {
+  const isChecked = preferences[key] ? 'checked' : '';
   return `
     <div class="setting-row">
       <div class="setting-copy">
         <strong>${title}</strong>
         <span>${description}</span>
       </div>
-      <button
-        class="preference-toggle instance-toggle ${preferences[key] ? 'active' : ''}"
-        type="button"
-        aria-pressed="${preferences[key] ? 'true' : 'false'}"
-        data-pref-key="${key}"></button>
+      <label class="checkbox-wrap">
+        <input type="checkbox" class="preference-checkbox" data-pref-key="${key}" ${isChecked}>
+        <span class="checkbox-custom"></span>
+      </label>
     </div>
   `;
 }
@@ -525,11 +549,11 @@ function setupSettingsDragAndDrop() {
 }
 
 function setupSettingsEventListeners() {
-  const preferenceToggles = elements.settingsList.querySelectorAll('.preference-toggle');
-  preferenceToggles.forEach(toggle => {
-    toggle.addEventListener('click', async () => {
-      const key = toggle.getAttribute('data-pref-key');
-      preferences = await window.api.updatePreferences({ [key]: !preferences[key] });
+  const preferenceCheckboxes = elements.settingsList.querySelectorAll('.preference-checkbox');
+  preferenceCheckboxes.forEach(checkbox => {
+    checkbox.addEventListener('change', async () => {
+      const key = checkbox.getAttribute('data-pref-key');
+      preferences = await window.api.updatePreferences({ [key]: checkbox.checked });
       applyTheme();
       renderSettingsPanel();
     });
@@ -575,14 +599,13 @@ function setupSettingsEventListeners() {
     });
   }
 
-  const toggles = elements.settingsList.querySelectorAll('.instance-toggle');
-  toggles.forEach(toggle => {
-    if (toggle.classList.contains('preference-toggle')) return;
-    toggle.addEventListener('click', async () => {
-      const instanceId = toggle.getAttribute('data-instance-id');
+  const instanceCheckboxes = elements.settingsList.querySelectorAll('.instance-checkbox');
+  instanceCheckboxes.forEach(checkbox => {
+    checkbox.addEventListener('change', async () => {
+      const instanceId = checkbox.getAttribute('data-instance-id');
       const instance = instances.find(i => i.id === instanceId);
       if (instance) {
-        await window.api.updateInstance(instanceId, { enabled: !instance.enabled });
+        await window.api.updateInstance(instanceId, { enabled: checkbox.checked });
         instances = await window.api.getInstances();
         renderSidebar();
         renderSettingsPanel();
