@@ -84,6 +84,13 @@ El flujo es manual: el usuario dispara la descarga desde la UI, y la instalacion
 
 Si cambian los formatos de salida, el proceso de build, la publicacion o el flujo de actualizaciones, tambien debe actualizarse esta spec.
 
+## Version 1.1.2
+
+Cambios incluidos en esta version:
+
+- conservar la sesion persistente al desactivar y volver a activar una instancia
+- mantener la limpieza de cookies y almacenamiento unicamente al eliminar una instancia
+
 ## Version 1.1.1
 
 Cambios incluidos en esta version:
@@ -92,7 +99,7 @@ Cambios incluidos en esta version:
 - vista dedicada cuando un servicio esta deshabilitado
 - sincronizacion de badge y estado de atencion cuando hay servicios deshabilitados
 - conversion de toggles a checkboxes en preferencias y configuraciones de instancia
-- limpieza completa de session y views al deshabilitar un servicio
+- destruccion de views al deshabilitar un servicio para liberar recursos
 
 ## Version 1.0.18
 

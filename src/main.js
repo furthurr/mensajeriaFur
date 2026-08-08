@@ -1209,8 +1209,6 @@ function updateInstance(id, data) {
         delete instanceViews[id];
       }
 
-      session.fromPartition(`persist:${id}`).clearStorageData();
-
       if (activeInstanceId === id) {
         activeInstanceId = null;
         store.set('activeInstanceId', null);

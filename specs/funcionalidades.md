@@ -8,8 +8,8 @@ La app centraliza 18 servicios de mensajeria dentro de una sola ventana de escri
 
 - se pueden crear multiples instancias por servicio
 - cada instancia tiene `id`, `serviceType`, `name` y `enabled`
-- una instancia puede habilitarse o deshabilitarse sin borrarse
-- al eliminar una instancia tambien se elimina su sesion persistente
+- una instancia puede habilitarse o deshabilitarse sin borrarse ni perder su sesion
+- al eliminar una instancia tambien se elimina su sesion persistente (cookies, localStorage, IndexedDB)
 
 ## Servicios disponibles
 
