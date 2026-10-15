@@ -105,3 +105,17 @@ src/, package.json, package-lock.json, scripts/notarize.js, .github/workflows/re
 ```
 
 This pattern is defined in the workflow as `RELEVANT_PATTERN`. If your change touches any of these and you don't update `specs/`, the PR will fail CI.
+
+<!-- ai-agents-kit:documentation:start -->
+## Documentación canónica
+
+- `specs/` conserva el comportamiento y los contratos de producto; su índice está en `specs/README.md` y CI exige actualizarla para cambios relevantes.
+- `.architecture/README.md` es la entrada a la arquitectura C4, flujos, riesgos y ADRs. Las fuentes estructurales siguen siendo `src/`, `package.json` y `.github/workflows/`.
+- `.data/README.md` documenta persistencia local y la API IPC; contrasta modelos con `src/main.js`, `src/preload.js` y `specs/persistencia.md`. No inventa contratos para los sitios externos.
+- `.design/README.md` es la entrada a tokens visuales y componentes; la fuente de verdad es `src/styles.css`, `src/index.html` y `src/renderer.js`; `specs/ui.md` describe comportamiento.
+- `.quality/README.md` mantiene hallazgos/métricas de calidad. Una revisión estática no implica que haya un scanner, pruebas o quality gate aprobado.
+- `.security/README.md` mantiene findings, inventario de datos sensibles y límites de la revisión. Sus findings no son remediaciones ni certificación de seguridad.
+- `.navigator/ai-context.md` y `module-map.json` aceleran la navegación; son índices auxiliares y deben verificarse contra las fuentes directas.
+
+Responsables documentales: arquitectura (`.architecture/`), datos/persistencia (`.data/`), UI (`.design/`), calidad (`.quality/`) y seguridad (`.security/`). Mantener cada dominio en su carpeta y evitar duplicar specs; actualizar la documentación al cambiar sus fuentes.
+<!-- ai-agents-kit:documentation:end -->

@@ -41,6 +41,20 @@ Preferencias globales actuales:
 - permitir sonidos
 - idioma de correccion ortografica (soporta: es-MX, es-ES, en-US, en-GB, pt-BR, fr-FR, de-DE, it-IT)
 
+## Protección del inicio
+
+- Ajustes → Seguridad muestra un switch que refleja si la autenticación al iniciar está activada; por defecto está desactivada.
+- Cambiar el switch solicita el método configurado y solo actualiza su estado visual/persistido tras completar la autenticación; si se cancela o falla, conserva el estado anterior.
+- En macOS con Touch ID disponible, la activación exige una autenticación nativa correcta. No se guardan datos biométricos en la app.
+- Sin Touch ID disponible (incluidos Windows y Linux), se configura una contraseña propia de entre 8 y 1024 caracteres y se exige confirmarla.
+- En cada nuevo arranque se muestra una pantalla bloqueada antes de cargar los servicios o exponer sus datos por IPC.
+- Touch ID se solicita automáticamente al entrar a la pantalla bloqueada; la contraseña se introduce en el formulario. Cancelar o fallar permite reintentar, nunca omitir el bloqueo.
+- Cinco contraseñas incorrectas imponen una espera de 30 segundos dentro del proceso actual.
+- Desactivar la protección exige autenticar con el método configurado.
+- Si Touch ID deja de estar disponible tras configurarlo, se mantiene el bloqueo y se indica habilitarlo de nuevo en el sistema; no hay cambio automático a contraseña ni recuperación de contraseña olvidada.
+- El bloqueo no cifra las sesiones ni impide manipular archivos desde la misma cuenta del sistema operativo. No incluye bloqueo por inactividad, suspensión ni vuelta del segundo plano.
+- Cerrar y volver a crear la ventana en macOS sin terminar el proceso no cuenta como un nuevo arranque.
+
 ## Menus y acciones contextuales
 
 - menu nativo de aplicacion con accesos a servicios habilitados

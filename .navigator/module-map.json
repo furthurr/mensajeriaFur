@@ -1,0 +1,73 @@
+{
+  "version": 1,
+  "generated_at": "2026-10-15T02:44:07Z",
+  "root": ".",
+  "modules": [
+    {
+      "id": "main-process",
+      "name": "Proceso principal Electron",
+      "path": "src/main.js",
+      "responsibility": "Controla el inicio protegido, la ventana, vistas, autorización IPC, persistencia, sesiones y funciones del sistema operativo.",
+      "kind": "app",
+      "tech": ["JavaScript", "Electron"],
+      "entrypoints": ["src/main.js"],
+      "depends_on": ["app-lock"],
+      "tags": ["runtime", "ipc", "persistence", "authentication"]
+    },
+    {
+      "id": "preload-api",
+      "name": "Puente preload",
+      "path": "src/preload.js",
+      "responsibility": "Expone al renderer una API limitada con contextBridge y delega operaciones mediante IPC.",
+      "kind": "lib",
+      "tech": ["JavaScript", "Electron"],
+      "entrypoints": ["src/preload.js"],
+      "depends_on": ["main-process"],
+      "tags": ["ipc", "security-boundary"]
+    },
+    {
+      "id": "renderer-ui",
+      "name": "Interfaz de usuario",
+      "path": "src/renderer.js",
+      "responsibility": "Implementa la ventana principal y ajustes de Seguridad consumiendo window.api.",
+      "kind": "feature",
+      "tech": ["JavaScript", "HTML", "CSS"],
+      "entrypoints": ["src/index.html", "src/renderer.js", "src/styles.css"],
+      "depends_on": ["preload-api"],
+      "tags": ["renderer", "ui"]
+    },
+    {
+      "id": "app-lock",
+      "name": "Credenciales del bloqueo local",
+      "path": "src/app-lock.js",
+      "responsibility": "Valida contraseñas confirmadas, deriva hashes scrypt con salt y verifica credenciales en tiempo constante.",
+      "kind": "lib",
+      "tech": ["JavaScript", "Node.js"],
+      "entrypoints": ["src/app-lock.js"],
+      "depends_on": [],
+      "tags": ["authentication", "persistence"]
+    },
+    {
+      "id": "lock-screen",
+      "name": "Pantalla de inicio protegido",
+      "path": "src/lock.html",
+      "responsibility": "Presenta el acceso con Touch ID o contraseña antes de cargar la interfaz de servicios.",
+      "kind": "feature",
+      "tech": ["JavaScript", "HTML", "CSS"],
+      "entrypoints": ["src/lock.html", "src/lock.js"],
+      "depends_on": ["preload-api"],
+      "tags": ["renderer", "authentication"]
+    },
+    {
+      "id": "app-lock-tests",
+      "name": "Pruebas focalizadas del bloqueo",
+      "path": "tests",
+      "responsibility": "Verifica credenciales y controles del proceso principal mediante el test runner de Node y dobles de Electron.",
+      "kind": "other",
+      "tech": ["JavaScript", "Node.js"],
+      "entrypoints": ["tests/app-lock.test.js", "tests/app-lock-integration.test.js"],
+      "depends_on": ["app-lock", "main-process"],
+      "tags": ["tests", "authentication"]
+    }
+  ]
+}

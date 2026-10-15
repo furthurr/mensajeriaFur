@@ -56,6 +56,8 @@ let preferences = {
 let themeMediaQuery = null;
 let manualUpdateCheckRequested = false;
 let installUpdateAfterDownload = false;
+let lockStatus = { enabled: false, biometricAvailable: false, mode: null };
+let lockActionBusy = false;
 
 const elements = {};
 
@@ -105,6 +107,7 @@ async function init() {
     window.api.getPreferences()
   ]);
   badgeState = await window.api.getBadgeState();
+  lockStatus = await window.api.getLockStatus();
 
   setupThemeListener();
   applyTheme();
@@ -428,6 +431,40 @@ function renderSettingsPanel() {
       ${renderPreferenceToggle('confirmBeforeDelete', 'Confirmar antes de eliminar', 'Pide confirmación antes de borrar una instancia.')}
     </div>
 
+    <section class="settings-block" aria-labelledby="security-title">
+      <div class="settings-block-header">
+        <h3 id="security-title">Seguridad</h3>
+        <p>Solicitar autenticación al iniciar: <strong>${lockStatus.enabled ? 'activada' : 'desactivada'}</strong>.</p>
+      </div>
+      <p id="security-hint" class="auth-hint">${lockStatus.enabled
+        ? `Método configurado: ${lockStatus.mode === 'biometric' ? 'Touch ID' : 'contraseña de la aplicación'}. Para desactivar la protección debes autenticarte.`
+        : lockStatus.biometricAvailable
+          ? 'Se usará Touch ID. Si deja de estar disponible, necesitarás habilitarlo de nuevo en el sistema para acceder.'
+          : 'Touch ID no está disponible en esta plataforma o equipo. Crea y confirma una contraseña de al menos 8 caracteres.'}</p>
+      ${(lockStatus.enabled ? lockStatus.mode === 'password' : !lockStatus.biometricAvailable) ? `
+        <div id="security-credentials" class="auth-form">
+          <label for="security-password">${lockStatus.enabled ? 'Contraseña actual' : 'Nueva contraseña'}</label>
+          <input id="security-password" type="password" autocomplete="${lockStatus.enabled ? 'current-password' : 'new-password'}" minlength="8" maxlength="1024" required>
+          ${!lockStatus.enabled ? `<label for="security-confirmation">Confirmar contraseña</label>
+            <input id="security-confirmation" type="password" autocomplete="new-password" minlength="8" maxlength="1024" required>` : ''}
+        </div>
+      ` : ''}
+      <label class="setting-row security-toggle-row">
+        <span class="setting-copy">
+          <strong id="security-toggle-label">Protección al iniciar</strong>
+          <span>${lockStatus.enabled
+            ? 'Se solicitará autenticación antes de cargar tus servicios al próximo inicio.'
+            : 'Activa para solicitar autenticación antes de cargar tus servicios.'}</span>
+        </span>
+        <span class="security-switch">
+          <input id="security-toggle" type="checkbox" role="switch" aria-labelledby="security-toggle-label" aria-describedby="security-hint security-feedback" ${lockStatus.enabled ? 'checked' : ''} ${lockActionBusy ? 'disabled' : ''}>
+          <span class="security-switch-track" aria-hidden="true"><span class="security-switch-thumb"></span></span>
+        </span>
+      </label>
+      <p id="security-feedback" class="auth-error" role="status" aria-live="polite"></p>
+      <p class="auth-hint">Este bloqueo no cifra los datos de los servicios. No hay recuperación de contraseña; guárdala en un lugar seguro.</p>
+    </section>
+
     <div class="settings-block">
       <div class="settings-block-header">
         <h3>Notificaciones</h3>
@@ -549,6 +586,71 @@ function setupSettingsDragAndDrop() {
 }
 
 function setupSettingsEventListeners() {
+  const securityToggle = document.getElementById('security-toggle');
+  securityToggle.addEventListener('change', async event => {
+    const toggle = event.currentTarget;
+    const wasEnabled = lockStatus.enabled;
+    if (lockActionBusy) {
+      toggle.checked = wasEnabled;
+      return;
+    }
+
+    const enabling = toggle.checked;
+    const credentials = document.getElementById('security-credentials');
+    const feedback = document.getElementById('security-feedback');
+    const password = document.getElementById('security-password');
+    const confirmation = document.getElementById('security-confirmation');
+    const requiresPassword = enabling ? !lockStatus.biometricAvailable : lockStatus.mode === 'password';
+    feedback.textContent = '';
+
+    if (requiresPassword) {
+      const fields = credentials ? [...credentials.querySelectorAll('input[type="password"]')] : [];
+      const invalidField = fields.find(field => !field.checkValidity());
+      if (invalidField) {
+        invalidField.reportValidity();
+        toggle.checked = wasEnabled;
+        feedback.textContent = 'Completa los campos de contraseña para continuar.';
+        return;
+      }
+    }
+
+    toggle.checked = wasEnabled;
+    lockActionBusy = true;
+    toggle.disabled = true;
+    if (credentials) credentials.querySelectorAll('input').forEach(input => { input.disabled = true; });
+    feedback.textContent = 'Verificando…';
+    try {
+      const result = await window.api.appLockAction(enabling ? 'enable' : 'disable', password?.value, confirmation?.value);
+      if (result.error) {
+        toggle.checked = wasEnabled;
+        feedback.textContent = result.error;
+      } else {
+        lockStatus = result.status;
+        lockActionBusy = false;
+        renderSettingsPanel();
+        document.getElementById('security-feedback').textContent = lockStatus.enabled
+          ? 'Protección activada. Se solicitará autenticación en el próximo inicio.'
+          : 'Protección desactivada.';
+        document.getElementById('security-toggle').focus();
+      }
+    } catch {
+      toggle.checked = wasEnabled;
+      feedback.textContent = 'No se pudo cambiar la protección. Intenta de nuevo.';
+    } finally {
+      if (password) password.value = '';
+      if (confirmation) confirmation.value = '';
+      lockActionBusy = false;
+      const currentToggle = document.getElementById('security-toggle');
+      if (currentToggle) currentToggle.disabled = false;
+      const currentCredentials = document.getElementById('security-credentials');
+      if (currentCredentials) {
+        currentCredentials.querySelectorAll('input').forEach(input => {
+          input.disabled = false;
+          input.value = '';
+        });
+      }
+    }
+  });
   const preferenceCheckboxes = elements.settingsList.querySelectorAll('.preference-checkbox');
   preferenceCheckboxes.forEach(checkbox => {
     checkbox.addEventListener('change', async () => {
@@ -837,6 +939,7 @@ function openSettings() {
 }
 
 function closeSettings() {
+  elements.settingsList.querySelectorAll('input[type="password"]').forEach(input => { input.value = ''; });
   elements.settingsPanel.classList.remove('visible');
   setTimeout(() => {
     elements.settingsPanel.classList.add('hidden');

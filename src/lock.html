@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'">
+  <title>Desbloquear MensajeríaFur</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="lock-screen">
+  <main class="auth-card">
+    <img src="../icono.png" width="72" height="72" alt="MensajeríaFur">
+    <h1>Desbloquear MensajeríaFur</h1>
+    <p id="lock-description">Comprobando protección…</p>
+    <form id="unlock-form" class="auth-form">
+      <label id="lock-password-label" hidden>Contraseña
+        <input id="lock-password" type="password" autocomplete="current-password" maxlength="1024">
+      </label>
+      <p id="lock-error" class="auth-error" role="alert"></p>
+      <button id="unlock-button" class="settings-link-btn" disabled>Desbloquear</button>
+    </form>
+    <p class="auth-hint">Puedes cerrar la ventana para salir sin desbloquear.</p>
+  </main>
+  <script src="lock.js"></script>
+</body>
+</html>

@@ -26,6 +26,7 @@ El panel agrupa:
 
 - apariencia
 - preferencias generales
+- seguridad: estado de la protección de inicio, activación y desactivación autenticada
 - notificaciones y sonido
 - idioma de correccion
 - actualizaciones
@@ -55,6 +56,17 @@ Modales actuales:
 - cuando hay una nueva version, la UI ofrece `Descargar y actualizar`
 - durante la descarga se muestra progreso en porcentaje
 - al terminar la descarga, la app instala la actualizacion automaticamente si el usuario inicio ese flujo
+
+## Pantalla de bloqueo
+
+- `lock.html` y `lock.js` forman una pantalla independiente de la interfaz de servicios, cargada cuando existe protección configurada.
+- Presenta un campo de contraseña o una acción para Touch ID según el método guardado. Touch ID se solicita automáticamente una vez; tras cancelar o fallar se reintenta mediante el botón.
+- Mientras se autentica se deshabilita la acción para evitar solicitudes simultáneas. Los errores se anuncian mediante una región accesible y nunca descubren el contenido de los servicios.
+- Ajustes → Seguridad muestra un switch accesible (`input[type=checkbox]` con `role=switch`) marcado según el estado de protección actual.
+- Cambiar el switch activa el flujo existente: Touch ID cuando corresponde, o creación/confirmación de contraseña al activar y contraseña actual al desactivar. El estado visual solo cambia tras autenticación correcta; cancelar o fallar lo restaura.
+- Mientras se autentica, el switch se deshabilita y el resultado se anuncia en una región accesible. Los campos de contraseña se limpian tras cada intento y al cerrar Ajustes.
+- La ventana puede cerrarse sin desbloquear; en macOS el proceso puede seguir activo según el ciclo de vida habitual de Electron.
+- Tras autenticar correctamente se carga la interfaz principal y se restaura el servicio según las preferencias existentes.
 
 ## Regla de visibilidad importante
 

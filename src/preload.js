@@ -1,6 +1,8 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('api', {
+  getLockStatus: () => ipcRenderer.invoke('get-lock-status'),
+  appLockAction: (action, password, confirmation) => ipcRenderer.invoke('app-lock-action', action, password, confirmation),
   getInstances: () => ipcRenderer.invoke('get-instances'),
   getSidebarOrder: () => ipcRenderer.invoke('get-sidebar-order'),
   getSettingsOrder: () => ipcRenderer.invoke('get-settings-order'),

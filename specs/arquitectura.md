@@ -10,6 +10,8 @@ La arquitectura sigue el modelo multiproceso tipico de Electron:
 - `src/preload.js`: puente seguro entre renderer y proceso principal.
 - `src/renderer.js`: interfaz, estado visual y eventos de usuario.
 - `src/index.html` y `src/styles.css`: estructura y estilos de la UI.
+- `src/app-lock.js`: creación y verificación asíncrona de hashes de contraseña.
+- `src/lock.html` y `src/lock.js`: interfaz de autenticación previa a los servicios.
 
 ## Responsabilidades por capa
 
@@ -52,6 +54,16 @@ El renderer no accede directamente a modulos de Electron ni a APIs sensibles. To
 4. El preload expone `window.api`.
 5. El renderer solicita estado inicial por IPC y renderiza la UI.
 6. Al seleccionar una instancia, el proceso principal monta el `WebContentsView` correspondiente.
+
+### Inicio protegido
+
+Si existe `appLock`, el proceso principal carga `lock.html` en lugar de `index.html` y mantiene `appLocked` hasta completar la autenticación. Antes de autenticar no crea ni monta vistas de servicios y el menú no enumera instancias. Tras autenticar carga `index.html` y continúa el flujo habitual.
+
+El preload añade `getLockStatus()` y `appLockAction(action, password?, confirmation?)`. Las acciones son `enable`, `disable` y `unlock`; las respuestas contienen `{ status }` o `{ error }`. Los valores de contraseña no se incluyen en las respuestas. El estado público contiene `enabled`, `mode`, `biometricAvailable` y `locked`.
+
+Todos los handlers IPC de producto comprueban que el emisor sea el frame principal de la ventana local y que la aplicación esté desbloqueada. Los canales de protección validan el mismo origen y limitan qué acciones se permiten en cada estado. La autenticación nativa y la persistencia pertenecen al proceso principal, no a la UI.
+
+Las pruebas focalizadas se ejecutan con `node --test tests/*.test.js` sin dependencias adicionales. Las pruebas de integración simulan Electron y Touch ID; no sustituyen pruebas físicas del prompt en macOS ni pruebas de UI en Windows/Linux.
 
 ## Aislamiento por instancia
 

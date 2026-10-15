@@ -11,6 +11,16 @@ La app usa `electron-store` como almacenamiento local para preferencias y metada
 - `settingsOrder`: orden del panel de ajustes
 - `activeInstanceId`: ultima instancia activa
 - `preferences`: preferencias globales de la app
+- `appLock`: registro opcional de protección de inicio, separado de las preferencias generales; su ausencia significa protección desactivada.
+
+## Credenciales del bloqueo
+
+- Touch ID: `{ mode: 'biometric' }`; la biometría permanece bajo control de macOS.
+- Contraseña: `{ mode: 'password', salt, hash }`; salt aleatorio de 32 bytes y hash scrypt de 64 bytes, codificados en hexadecimal. Se utiliza el salt hexadecimal como entrada de scrypt con los parámetros predeterminados de Node (`N=16384`, `r=8`, `p=1`).
+- La contraseña y su confirmación no se persisten ni se registran; la verificación usa comparación de tiempo constante.
+- La API IPC solo devuelve estado y capacidades de protección, nunca salt ni hash.
+- Al desactivar la protección se elimina `appLock`; las sesiones y preferencias existentes no cambian.
+- Los contadores y la espera por intentos incorrectos son transitorios por proceso, no un mecanismo contra ataques offline.
 
 ## Preferencias por defecto
 

@@ -3,6 +3,8 @@ const path = require('path');
 const crypto = require('crypto');
 const Store = require('electron-store');
 const { autoUpdater } = require('electron-updater');
+const { pathToFileURL } = require('node:url');
+const { createPasswordRecord, verifyPassword } = require('./app-lock');
 
 // --- Linux compatibility fixes (Ubuntu 24.04+) ---
 if (process.platform === 'linux') {
@@ -107,6 +109,100 @@ let instances = [];
 let sidebarOrder = [];
 let settingsOrder = [];
 let preferences = { ...DEFAULT_PREFERENCES };
+let appLocked = false;
+let authBusy = false;
+let retryAfter = 0;
+let failedAttempts = 0;
+
+function isTrustedAppSender(event) {
+  if (!mainWindow || mainWindow.isDestroyed() || event.sender !== mainWindow.webContents ||
+      event.senderFrame !== mainWindow.webContents.mainFrame) return false;
+  return ['index.html', 'lock.html'].some(file =>
+    event.senderFrame.url === pathToFileURL(path.join(__dirname, file)).href);
+}
+
+function canUseTouchId() {
+  try {
+    return process.platform === 'darwin' && systemPreferences.canPromptTouchID();
+  } catch {
+    return false;
+  }
+}
+
+function getLockStatus() {
+  const record = store.get('appLock');
+  return { enabled: Boolean(record), mode: record?.mode || null, biometricAvailable: canUseTouchId(), locked: appLocked };
+}
+
+async function authenticateLock(password) {
+  const record = store.get('appLock');
+  if (!record) return;
+  if (Date.now() < retryAfter) throw new Error('Demasiados intentos. Espera 30 segundos antes de reintentar.');
+  if (record.mode === 'biometric') {
+    if (!canUseTouchId()) throw new Error('Touch ID no está disponible. Habilítalo en los ajustes del sistema para continuar.');
+    try {
+      await systemPreferences.promptTouchID('desbloquear MensajeriaFur');
+    } catch {
+      throw new Error('No se completó la autenticación con Touch ID. Puedes reintentar.');
+    }
+  } else if (record.mode === 'password') {
+    if (!await verifyPassword(password, record)) {
+      failedAttempts += 1;
+      if (failedAttempts >= 5) {
+        retryAfter = Date.now() + 30000;
+        failedAttempts = 0;
+      }
+      throw new Error('Contraseña incorrecta.');
+    }
+  } else {
+    throw new Error('La configuración de protección no es válida. No se puede desbloquear.');
+  }
+  failedAttempts = 0;
+  retryAfter = 0;
+}
+
+function setupLockIpc() {
+  ipcMain.handle('get-lock-status', event => {
+    if (!isTrustedAppSender(event)) throw new Error('Origen no autorizado.');
+    return getLockStatus();
+  });
+  ipcMain.handle('app-lock-action', async (event, action, password, confirmation) => {
+    if (!isTrustedAppSender(event)) return { error: 'Origen no autorizado.' };
+    if (authBusy) return { error: 'Ya hay una autenticación en curso.' };
+    authBusy = true;
+    try {
+      if (action === 'unlock') {
+        await authenticateLock(password);
+        appLocked = false;
+        rebuildMenu();
+        await mainWindow.loadFile(path.join(__dirname, 'index.html'));
+      } else if (action === 'enable' && !appLocked && !store.get('appLock')) {
+        let record;
+        if (canUseTouchId()) {
+          try {
+            await systemPreferences.promptTouchID('activar la protección de MensajeriaFur');
+          } catch {
+            throw new Error('Activación cancelada. La protección no se ha habilitado.');
+          }
+          record = { mode: 'biometric' };
+        } else {
+          record = await createPasswordRecord(password, confirmation);
+        }
+        store.set('appLock', record);
+      } else if (action === 'disable' && !appLocked) {
+        await authenticateLock(password);
+        store.delete('appLock');
+      } else {
+        throw new Error('Acción de protección no permitida.');
+      }
+      return { status: getLockStatus() };
+    } catch (error) {
+      return { error: error.message };
+    } finally {
+      authBusy = false;
+    }
+  });
+}
 
 function sanitizePreferences(data = {}) {
   const next = { ...DEFAULT_PREFERENCES, ...data };
@@ -492,6 +588,7 @@ function initStore() {
   settingsOrder = store.get('settingsOrder');
   activeInstanceId = store.get('activeInstanceId');
   preferences = sanitizePreferences(store.get('preferences'));
+  appLocked = Boolean(store.get('appLock'));
   store.set('preferences', preferences);
 
   if (activeInstanceId && !instances.some(instance => instance.id === activeInstanceId && instance.enabled)) {
@@ -533,7 +630,7 @@ function createWindow() {
     }
   });
 
-  mainWindow.loadFile(path.join(__dirname, 'index.html'));
+  mainWindow.loadFile(path.join(__dirname, appLocked ? 'lock.html' : 'index.html'));
 
   mainWindow.on('resize', () => {
     if (activeInstanceId && instanceViews[activeInstanceId]) {
@@ -573,6 +670,7 @@ function createWindow() {
   });
 
   mainWindow.webContents.on('did-finish-load', () => {
+    if (appLocked) return;
     console.log('Window finished loading');
 
     const enabledInstances = getEnabledSidebarInstances();
@@ -764,6 +862,7 @@ function openTeamsInteractiveAuthWindow(instance, ses, view, silentAuthUrl) {
 }
 
 function getOrCreateView(instance) {
+  if (appLocked) return null;
   if (instanceViews[instance.id]) {
     return instanceViews[instance.id];
   }
@@ -983,6 +1082,7 @@ function getOrCreateView(instance) {
 }
 
 function switchToInstance(instanceId) {
+  if (appLocked) return;
   const instance = instances.find(i => i.id === instanceId);
   if (!instance) return;
   const serviceType = SERVICE_TYPES[instance.serviceType];
@@ -1052,6 +1152,7 @@ function updateViewBounds(view) {
 }
 
 function setActiveViewVisible(visible) {
+  if (appLocked) return;
   activeViewVisible = visible;
 
   if (!mainWindow || mainWindow.isDestroyed() || !activeInstanceId) {
@@ -1088,7 +1189,7 @@ function getEnabledSidebarInstances() {
 }
 
 function rebuildMenu() {
-  const enabledInstances = getEnabledSidebarInstances();
+  const enabledInstances = appLocked ? [] : getEnabledSidebarInstances();
 
   const serviceSubmenu = enabledInstances.map((instance, index) => {
     const serviceType = SERVICE_TYPES[instance.serviceType];
@@ -1295,6 +1396,22 @@ function reorderSettings(order) {
 }
 
 function setupIpcHandlers() {
+  // All existing product IPC requires the trusted, unlocked application window.
+  const nativeIpc = require('electron').ipcMain;
+  const ipcMain = {
+    handle(channel, handler) {
+      nativeIpc.handle(channel, (event, ...args) => {
+        if (!isTrustedAppSender(event) || appLocked) throw new Error('Aplicación bloqueada u origen no autorizado.');
+        return handler(event, ...args);
+      });
+    },
+    on(channel, handler) {
+      nativeIpc.on(channel, (event, ...args) => {
+        if (!isTrustedAppSender(event) || appLocked) return;
+        handler(event, ...args);
+      });
+    }
+  };
   ipcMain.handle('get-instances', () => instances);
 
   ipcMain.handle('get-sidebar-order', () => sidebarOrder);
@@ -1614,6 +1731,7 @@ app.whenReady().then(() => {
   applyLoginItemSettings();
   console.log('Store initialized, setting up IPC...');
   setupIpcHandlers();
+  setupLockIpc();
   console.log('IPC set up, creating window...');
   createWindow();
   console.log('Window created, rebuilding menu...');
