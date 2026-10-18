@@ -1,6 +1,6 @@
 {
   "name": "mensajeriafur",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "MensajeríaFur - Todas tus apps de mensajería en un solo lugar",
   "main": "src/main.js",
   "scripts": {

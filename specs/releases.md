@@ -98,6 +98,13 @@ Las versiones instaladas que contienen `publisherName: PedroGomez` rechazan los 
 
 Si cambian los formatos de salida, el proceso de build, la publicacion o el flujo de actualizaciones, tambien debe actualizarse esta spec.
 
+## Version 1.2.1
+
+- Corregir la configuracion del editor de Windows para que coincida con la presencia o ausencia de un certificado de firma.
+- Normalizar el error de firma del updater con instrucciones de recuperacion manual en espanol.
+- Publicar instaladores y metadata regenerados para la version 1.2.1; las instalaciones bloqueadas requieren ejecutar el instalador manualmente una vez.
+- Agregar pruebas de regresion del tratamiento de errores del updater.
+
 ## Version 1.1.2
 
 Cambios incluidos en esta version:
