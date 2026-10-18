@@ -1647,6 +1647,10 @@ function normalizeUpdateErrorMessage(err) {
   const rawMessage = err?.message || 'Error desconocido';
   const message = rawMessage.toLowerCase();
 
+  if (err?.code === 'ERR_UPDATER_INVALID_SIGNATURE' || message.includes('is not signed by the application owner')) {
+    return 'No se pudo verificar la firma del instalador de Windows. Para reparar el actualizador, cierra la app e instala manualmente la version corregida desde https://github.com/furthurr/mensajeriaFur/releases/latest.';
+  }
+
   if (message.includes('zip file not provided')) {
     return 'La actualizacion de macOS publicada es invalida porque falta el archivo .zip requerido.';
   }

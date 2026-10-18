@@ -67,6 +67,11 @@ El script `scripts/notarize.js` se ejecuta como `afterSign`. Si las variables no
 
 En Windows, se puede configurar un certificado de firma en electron-builder.
 
+- No se fija `win.publisherName` al nombre del autor: ese campo identifica al titular de un certificado, no los metadatos de autoria.
+- Sin certificado, electron-builder debe generar `resources/app-update.yml` sin `publisherName`, de modo que el updater no exija una firma Authenticode inexistente.
+- Con certificado, electron-builder obtiene automaticamente el editor desde el certificado y el updater verifica la firma. No se desactiva globalmente `verifyUpdateCodeSignature` ni se reemplaza el verificador en runtime.
+- Las descargas siguen verificando su integridad con el SHA-512 publicado en `latest.yml`; esto no sustituye la autenticacion del editor mediante una firma digital.
+
 ## Auto-update
 
 El auto-update funciona en todas las plataformas (macOS, Linux, Windows) usando `electron-updater` con GitHub como provider.
@@ -79,6 +84,15 @@ Reglas de publicacion para que no se rompa el updater:
 - Windows debe publicar el instalador NSIS referenciado por `latest.yml`
 
 El flujo es manual: el usuario dispara la descarga desde la UI, y la instalacion ocurre al cerrar la app.
+
+### Recuperacion de instalaciones Windows con editor fijo
+
+Las versiones instaladas que contienen `publisherName: PedroGomez` rechazan los instaladores sin firma con `ERR_UPDATER_INVALID_SIGNATURE`, incluso tras completar la descarga. Cambiar solo el nuevo instalador o `latest.yml` no repara la configuracion de la app que ya esta ejecutandose.
+
+- Se debe cerrar la app y ejecutar manualmente un `MensajeriaFur-windows-setup.exe` construido con la configuracion corregida, sobre la instalacion existente.
+- No es necesario desinstalar ni borrar las sesiones o preferencias.
+- Si el error vuelve a producirse, la UI muestra un mensaje en espanol con la indicacion de instalar manualmente la version corregida desde la pagina oficial de releases, en lugar del volcado tecnico de PowerShell.
+- Antes de publicar, comprobar que `dist/win-unpacked/resources/app-update.yml` no contiene `publisherName` en un build sin certificado y que `latest.yml` referencia el instalador NSIS y su SHA-512 correcto.
 
 ## Regla documental
 

@@ -110,8 +110,7 @@
         "nsis",
         "portable"
       ],
-      "requestedExecutionLevel": "asInvoker",
-      "publisherName": "PedroGomez"
+      "requestedExecutionLevel": "asInvoker"
     },
     "nsis": {
       "artifactName": "MensajeriaFur-windows-setup.${ext}",
